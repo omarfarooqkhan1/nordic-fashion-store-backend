@@ -1,0 +1,7 @@
+https://nordic-leather-products.eu.auth0.com/authorize?
+response_type=token id_token&
+client_id=18WnRcSdpX7IIntnGyZFIIy4WG7SFH5UL&
+redirect_uri=http://localhost:8000&
+scope=openid profile email&
+audience=https://api.nordicleatherproducts.com&
+nonce=RANDOM_STRING_HERE
