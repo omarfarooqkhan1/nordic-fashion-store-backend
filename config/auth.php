@@ -14,8 +14,8 @@ return [
     */
 
     'defaults' => [
-        'guard' => env('AUTH_GUARD', 'web'),
-        'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
+        'guard' => 'auth0', // Change this if auth0 is your default
+        'passwords' => 'users',
     ],
 
     /*
@@ -39,6 +39,10 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+        ],
+        'auth0' => [
+            'driver' => 'auth0',
+            'provider' => 'auth0-users' // Or a custom provider if you're using one for Auth0 users
         ],
     ],
 
@@ -64,7 +68,9 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
-
+        'auth0-users' => [
+            'driver' => 'auth0',
+        ],
         // 'users' => [
         //     'driver' => 'database',
         //     'table' => 'users',

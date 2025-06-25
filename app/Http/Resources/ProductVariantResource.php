@@ -22,7 +22,8 @@ class ProductVariantResource extends JsonResource
             'price_difference' => $this->price_difference,
             'actual_price' => $this->actual_price, // Use the accessor
             'stock' => $this->stock,
-            'images' => ImageResource::collection($this->whenLoaded('images')), // Nested images
+            'images' => ImageResource::collection($this->whenLoaded('images')), // Nested 
+            'label' => "{$this->size} | {$this->color}",
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
         ];

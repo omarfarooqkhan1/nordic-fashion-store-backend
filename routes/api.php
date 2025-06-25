@@ -5,14 +5,25 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-// Publicly accessible Product Endpoints
+/*
+|--------------------------------------------------------------------------
+| Public Routes - Read-only
+|--------------------------------------------------------------------------
+*/
 Route::apiResource('products', ProductController::class)->only(['index', 'show']);
-
-// Publicly accessible Category Endpoints
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 
-// --- Auth0 Protected Routes will go here ---
+/*
+|--------------------------------------------------------------------------
+| Protected Routes - Authenticated via Auth0 (for future CRUD)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth'])->group(function () {
+    // Placeholder for when CRUD is added
+    Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
+
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+});

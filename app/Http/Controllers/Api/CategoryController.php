@@ -9,22 +9,42 @@ use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         return CategoryResource::collection(Category::all());
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Category $category)
     {
         return new CategoryResource($category);
     }
 
-    // For now, we are focusing on GET requests, so no store/update/destroy methods here.
-    // We'll add them later if CRUD is needed for categories via API.
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name',
+        ]);
+
+        $category = Category::create($validated);
+
+        return new CategoryResource($category);
+    }
+
+    public function update(Request $request, Category $category)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
+        ]);
+
+        $category->update($validated);
+
+        return new CategoryResource($category);
+    }
+
+    public function destroy(Category $category)
+    {
+        $category->delete();
+
+        return response()->json(['message' => 'Category deleted successfully.']);
+    }
 }

@@ -10,25 +10,50 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        // Eager load relationships for efficiency
         $products = Product::with(['category', 'variants.images', 'images'])->get();
         return new ProductCollection($products);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Product $product)
     {
-        // Eager load relationships for a single product
         $product->loadMissing(['category', 'variants.images', 'images']);
         return new ProductResource($product);
     }
 
-    // For now, focusing on GET. We'll add store/update/destroy later for products.
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:products,name',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'category_id' => 'required|exists:categories,id',
+        ]);
+
+        $product = Product::create($validated);
+
+        return new ProductResource($product);
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:products,name,' . $product->id,
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'category_id' => 'required|exists:categories,id',
+        ]);
+
+        $product->update($validated);
+
+        return new ProductResource($product);
+    }
+
+    public function destroy(Product $product)
+    {
+        $product->delete();
+
+        return response()->json(['message' => 'Product deleted successfully.']);
+    }
 }
