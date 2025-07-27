@@ -359,6 +359,39 @@ class AuthController extends Controller
     }
 
     /**
+     * Update user profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+        ]);
+
+        // Auth0 users cannot change email
+        if ($user->isAuth0User() && $validated['email'] !== $user->email) {
+            return response()->json([
+                'message' => 'Email cannot be changed for Auth0 users'
+            ], 422);
+        }
+
+        $user->update($validated);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'auth_type' => $user->isAuth0User() ? 'auth0' : 'password'
+            ]
+        ]);
+    }
+
+    /**
      * Check authentication method for email
      */
     public function checkAuthMethod(Request $request)

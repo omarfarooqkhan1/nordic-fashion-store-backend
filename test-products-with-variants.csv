@@ -1,0 +1,4 @@
+name,description,price,category_name,sku,color,size,price_difference,stock
+"Test Nordic Sweater","Warm wool sweater","89.99","Clothing","TNS-RED-M","Red","M","0.00","50"
+"Test Nordic Sweater","Warm wool sweater","89.99","Clothing","TNS-RED-L","Red","L","5.00","30"
+"Test Leather Boots","Premium leather boots","149.99","Footwear","TLB-BROWN-42","Brown","42","0.00","25"

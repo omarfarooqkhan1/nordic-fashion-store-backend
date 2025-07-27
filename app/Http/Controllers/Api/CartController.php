@@ -40,17 +40,20 @@ class CartController extends Controller
     // Update quantity
     public function update(Request $request, $itemId)
     {
-        $item = CartItem::findOrFail($itemId);
         $request->validate(['quantity' => 'required|integer|min:1']);
+        
+        $cart = $this->getOrCreateCart($request);
+        $item = $cart->items()->findOrFail($itemId);
         $item->update(['quantity' => $request->quantity]);
 
         return response()->json($item->load('variant.product'));
     }
 
     // Remove item
-    public function destroy($itemId)
+    public function destroy(Request $request, $itemId)
     {
-        $item = CartItem::findOrFail($itemId);
+        $cart = $this->getOrCreateCart($request);
+        $item = $cart->items()->findOrFail($itemId);
         $item->delete();
 
         return response()->json(['message' => 'Item removed']);
@@ -71,6 +74,9 @@ class CartController extends Controller
             return Cart::firstOrCreate(['user_id' => $request->user()->id]);
         } else {
             $sessionId = $request->header('X-Session-Id');
+            if (!$sessionId) {
+                abort(400, 'Session ID is required for guest carts');
+            }
             return Cart::firstOrCreate(['session_id' => $sessionId]);
         }
     }

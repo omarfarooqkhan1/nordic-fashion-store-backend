@@ -5,8 +5,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\Admin\AdminUserController;
+use App\Http\Controllers\Api\AddressController;
+// use App\Http\Controllers\Api\Admin\AdminUserController; // Controller not created yet
 
 /*
 |--------------------------------------------------------------------------
@@ -39,13 +41,21 @@ Route::post('login', [AuthController::class, 'login']);
 Route::post('admin/register', [AuthController::class, 'registerAdmin']);
 Route::post('admin/login', [AuthController::class, 'loginAdmin']);
 
-// Cart routes (authenticated customers only)
-Route::middleware(['auth'])->prefix('cart')->group(function () {
+// Cart routes (accessible by both authenticated customers and guests with session ID)
+Route::prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']);
     Route::post('/', [CartController::class, 'store']);
     Route::put('/{item}', [CartController::class, 'update']);
     Route::delete('/{item}', [CartController::class, 'destroy']);
     Route::delete('/', [CartController::class, 'clear']);
+});
+
+// Order routes (accessible by both authenticated customers and guests with session ID)
+Route::prefix('orders')->group(function () {
+    Route::get('/', [OrderController::class, 'index']);
+    Route::post('/', [OrderController::class, 'store']);
+    Route::post('/test', [\App\Http\Controllers\Api\OrderTestController::class, 'testStore']);
+    Route::get('/{order}', [OrderController::class, 'show']);
 });
 
 /*
@@ -61,7 +71,7 @@ Route::apiResource('categories', CategoryController::class)->only(['index', 'sho
 | Admin Protected Routes - Password-authenticated admins only
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     // Product management (admin only)
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
@@ -70,11 +80,11 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('products/bulk-upload', [ProductController::class, 'bulkUpload']);
     Route::get('products/bulk-upload/template', [ProductController::class, 'getBulkUploadTemplate']);
     
-    // User management routes
-    Route::get('admin/users', [AdminUserController::class, 'index']);
-    Route::post('admin/users', [AdminUserController::class, 'store']);
-    Route::put('admin/users/{user}/role', [AdminUserController::class, 'updateRole']);
-    Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
+    // User management routes (commented out - controller needs to be created)
+    // Route::get('admin/users', [AdminUserController::class, 'index']);
+    // Route::post('admin/users', [AdminUserController::class, 'store']);
+    // Route::put('admin/users/{user}/role', [AdminUserController::class, 'updateRole']);
+    // Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
     
     // Admin dashboard stats
     Route::get('admin/stats', function () {
@@ -93,8 +103,15 @@ Route::middleware(['auth', 'admin'])->group(function () {
 | Authenticated User Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
+    Route::put('/user', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    
+    // User address management
+    Route::prefix('user')->group(function () {
+        Route::apiResource('addresses', AddressController::class);
+        Route::patch('addresses/{address}/default', [AddressController::class, 'setDefault']);
+    });
 });
