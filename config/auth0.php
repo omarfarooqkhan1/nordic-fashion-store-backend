@@ -13,7 +13,7 @@ return Configuration::VERSION_2 + [
 
     'guards' => [
         'default' => [
-            Configuration::CONFIG_STRATEGY => Configuration::get(Configuration::CONFIG_STRATEGY, SdkConfiguration::STRATEGY_NONE),
+            Configuration::CONFIG_STRATEGY => Configuration::get(Configuration::CONFIG_STRATEGY, SdkConfiguration::STRATEGY_API),
             Configuration::CONFIG_DOMAIN => Configuration::get(Configuration::CONFIG_DOMAIN),
             Configuration::CONFIG_CUSTOM_DOMAIN => Configuration::get(Configuration::CONFIG_CUSTOM_DOMAIN),
             Configuration::CONFIG_CLIENT_ID => Configuration::get(Configuration::CONFIG_CLIENT_ID),
