@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\CloudinaryController;
 // use App\Http\Controllers\Api\Admin\AdminUserController; // Controller not created yet
 
 /*
@@ -76,9 +77,33 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
     
+    // Variant management for products
+    Route::post('products/{product}/variants', [ProductController::class, 'storeVariant']);
+    Route::put('products/{product}/variants/{variant}', [ProductController::class, 'updateVariant']);
+    Route::delete('products/{product}/variants/{variant}', [ProductController::class, 'destroyVariant']);
+    
+    // Standalone variant management (alternative endpoints)
+    Route::delete('variants/{variant}', [ProductController::class, 'destroyVariantStandalone']);
+    
+    // Product image management
+    Route::get('products/{product}/images/categorized', [ProductController::class, 'getCategorizedImages']);
+    Route::post('products/{product}/images', [ProductController::class, 'uploadImage']);
+    Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage']);
+    Route::put('products/{product}/images/reorder', [ProductController::class, 'reorderImages']);
+    
     // Bulk upload routes
     Route::post('products/bulk-upload', [ProductController::class, 'bulkUpload']);
     Route::get('products/bulk-upload/template', [ProductController::class, 'getBulkUploadTemplate']);
+    
+    // Cloudinary storage management
+    Route::get('cloudinary/storage-usage', [CloudinaryController::class, 'getStorageUsage']);
+    Route::post('cloudinary/cleanup', [CloudinaryController::class, 'cleanupStorage']);
+    
+    // Order management (admin only)
+    Route::prefix('admin')->group(function () {
+        Route::get('orders', [OrderController::class, 'adminIndex']);
+        Route::put('orders/{order}', [OrderController::class, 'adminUpdate']);
+    });
     
     // User management routes (commented out - controller needs to be created)
     // Route::get('admin/users', [AdminUserController::class, 'index']);

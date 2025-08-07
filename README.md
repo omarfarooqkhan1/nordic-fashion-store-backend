@@ -1,33 +1,93 @@
-# E-commerce Backend API
+# Nordic Fashion Store - Backend
 
-This repository hosts the backend API for an e-commerce application, built with Laravel. It provides the core functionalities required for managing products, users, and orders, designed to be consumed by various frontend clients (web, mobile, etc.).
+Laravel API backend for Nordic Fashion Store e-commerce platform.
 
-## 🚀 Features (Current & Planned)
+## 🚀 Quick Start
 
-* **Core API Structure:** Solid foundation for future API development.
-* **User Management:** (Planned) User registration, login, and profile management.
-* **Product Catalog:** (Planned) CRUD operations for products, categories, and inventory.
-* **Order Processing:** (Planned) Managing shopping carts, orders, and payment integration.
-* **Authentication & Authorization:** (In Progress) Secure API access.
+```bash
+# Install dependencies
+composer install
 
-## 🛠️ Technologies Used
+# Configure environment
+cp .env.example .env
+# Edit .env with your database credentials
 
-* **PHP:** Version ^8.2
-* **Laravel Framework:** ^11.0
-* **Composer:** For dependency management
-* **Git:** Version control
+# Generate application key
+php artisan key:generate
 
-## 📦 Getting Started
+# Run migrations
+php artisan migrate
 
-Follow these steps to set up the project locally.
+# Start development server
+php artisan serve
+# API runs on http://localhost:8000
+```
 
-### Prerequisites
+## �️ Tech Stack
 
-* PHP (8.2 or higher)
-* Composer
-* A database (e.g., MySQL, PostgreSQL, SQLite)
+- **Laravel 11** with PHP 8.2+
+- **MySQL** database
+- **Laravel Sanctum** for authentication
+- **Laravel Mail** for email notifications
+- **Cloudinary** for image storage
 
-### Installation
+## 🧩 Key Features
+
+- **Product Management** with variants and images
+- **Order Management** with tracking support
+- **Dual Authentication** (Auth0 + traditional)
+- **Guest Checkout** functionality
+- **Admin Dashboard** API endpoints
+- **Email Notifications** with professional templates
+- **Bulk Operations** for product management
+
+## 🔧 Environment Configuration
+
+### Database (.env)
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=nordic_fashion
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
+
+### Mail Configuration
+```env
+MAIL_MAILER=log
+MAIL_FROM_ADDRESS="noreply@nordicskin.com"
+MAIL_FROM_NAME="Nordic Fashion Store"
+```
+
+### Optional: Cloudinary
+```env
+CLOUDINARY_URL=cloudinary://key:secret@cloud_name
+```
+
+## � Development Commands
+
+```bash
+php artisan migrate       # Run database migrations
+php artisan db:seed       # Seed sample data
+php artisan cache:clear   # Clear application cache
+php artisan test          # Run tests
+```
+
+## � API Structure
+
+```
+app/
+├── Http/Controllers/Api/ # API controllers
+├── Models/              # Eloquent models
+├── Mail/               # Email templates
+└── Providers/          # Service providers
+
+routes/api.php          # API route definitions
+database/migrations/    # Database schema
+```
+
+For full project documentation, see the main README.md in the parent directory.
 
 1.  **Clone the repository:**
 

@@ -21,6 +21,7 @@ class Order extends Model
         'shipping',
         'total',
         'notes',
+        'tracking_number',
         'shipping_name',
         'shipping_email',
         'shipping_phone',

@@ -7,8 +7,10 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
+use App\Mail\OrderConfirmation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class OrderController extends Controller
@@ -205,6 +207,18 @@ class OrderController extends Controller
             $order->payment_transaction_id = 'TRANS_' . uniqid();
             $order->save();
             
+            // Send order confirmation email
+            try {
+                Mail::to($order->shipping_email)->send(new OrderConfirmation($order));
+            } catch (\Exception $e) {
+                // Log the error but don't fail the order creation
+                \Log::error('Failed to send order confirmation email: ' . $e->getMessage(), [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_email' => $order->shipping_email
+                ]);
+            }
+            
             return response()->json([
                 'message' => 'Order placed successfully',
                 'order' => $order->load('items'),
@@ -241,5 +255,57 @@ class OrderController extends Controller
         }
         
         return response()->json($order);
+    }
+
+    /**
+     * Admin: Get all orders
+     */
+    public function adminIndex(Request $request)
+    {
+        $orders = Order::with('items')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return response()->json($orders);
+    }
+
+    /**
+     * Admin: Update order status and tracking
+     */
+    public function adminUpdate(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => 'sometimes|in:pending,processing,shipped,delivered,cancelled',
+            'tracking_number' => 'sometimes|nullable|string|max:255',
+            'notes' => 'sometimes|nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $order = Order::find($id);
+        
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        // Update only provided fields
+        $updateData = array_filter($request->only(['status', 'tracking_number', 'notes']), function ($value) {
+            return $value !== null;
+        });
+
+        $order->update($updateData);
+        
+        // Load the updated order with items
+        $order->load('items');
+        
+        return response()->json([
+            'message' => 'Order updated successfully',
+            'order' => $order
+        ]);
     }
 }
