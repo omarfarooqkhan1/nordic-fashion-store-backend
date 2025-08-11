@@ -1,3 +1,5 @@
+use App\Http\Controllers\Api\CustomJacketOrderController;
+Route::post('/custom-jacket-orders', [CustomJacketOrderController::class, 'store']);
 <?php
 
 use Illuminate\Http\Request;
