@@ -1,0 +1,2 @@
+// PATCH CLEANUP: Remove misplaced resendVerificationCode and duplicate PHP opening/namespace/use statements before the class.
+// This file is a backup of the original AuthController.php before patching.

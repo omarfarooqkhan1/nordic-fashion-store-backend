@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -200,6 +201,11 @@ class OrderController extends Controller
             // Clear the cart
             $cart->items()->delete();
             
+            // Save shipping address to user's address book if authenticated and it's a new address
+            if ($user) {
+                $this->saveShippingAddressToUser($user, $request);
+            }
+            
             DB::commit();
             
             // Process payment (mock success for now)
@@ -208,11 +214,21 @@ class OrderController extends Controller
             $order->save();
             
             // Send order confirmation email
+            \Log::info('Attempting to send order confirmation email', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer_email' => $order->shipping_email
+            ]);
             try {
                 Mail::to($order->shipping_email)->send(new OrderConfirmation($order));
+                \Log::info('Order confirmation email sent successfully', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_email' => $order->shipping_email
+                ]);
             } catch (\Exception $e) {
-                // Log the error but don't fail the order creation
-                \Log::error('Failed to send order confirmation email: ' . $e->getMessage(), [
+                \Log::error('Failed to send order confirmation email', [
+                    'error' => $e->getMessage(),
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'customer_email' => $order->shipping_email
@@ -307,5 +323,54 @@ class OrderController extends Controller
             'message' => 'Order updated successfully',
             'order' => $order
         ]);
+    }
+    
+    /**
+     * Save shipping address to user's address book if it's a new address
+     */
+    private function saveShippingAddressToUser($user, Request $request)
+    {
+        try {
+            // Check if user already has this exact address
+            $existingAddress = $user->addresses()
+                ->where('street', $request->shipping_address)
+                ->where('city', $request->shipping_city)
+                ->where('postal_code', $request->shipping_postal_code)
+                ->where('country', $request->shipping_country)
+                ->first();
+            
+            // If address doesn't exist, create it
+            if (!$existingAddress) {
+                $addressData = [
+                    'type' => 'home', // Default type
+                    'label' => $request->shipping_name . "'s Address",
+                    'street' => $request->shipping_address,
+                    'city' => $request->shipping_city,
+                    'state' => $request->shipping_state ?? '',
+                    'postal_code' => $request->shipping_postal_code,
+                    'country' => $request->shipping_country,
+                ];
+                
+                $address = $user->addresses()->create($addressData);
+                
+                // If this is the user's first address, make it default
+                $userAddressCount = $user->addresses()->count();
+                if ($userAddressCount === 1) {
+                    $address->update(['is_default' => true]);
+                }
+                
+                \Log::info('Shipping address saved to user address book', [
+                    'user_id' => $user->id,
+                    'address_id' => $address->id,
+                    'address_label' => $address->label
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't fail the order creation
+            \Log::error('Failed to save shipping address to user address book: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'shipping_address' => $request->shipping_address
+            ]);
+        }
     }
 }

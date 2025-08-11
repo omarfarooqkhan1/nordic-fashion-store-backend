@@ -26,6 +26,10 @@ Route::post('check-auth-method', [AuthController::class, 'checkAuthMethod']);
 // Traditional password signup/login for customers
 Route::post('customer/register', [AuthController::class, 'registerCustomer']);
 Route::post('customer/login', [AuthController::class, 'loginCustomer']);
+Route::post('customer/verify-email', [AuthController::class, 'verifyEmailCode']);
+Route::post('customer/resend-verification', [AuthController::class, 'resendVerificationCode']);
+Route::post('password/send-reset-code', [\App\Http\Controllers\Api\AuthController::class, 'sendResetCode']);
+Route::post('password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
 
 // Auth0 signup/login for customers
 Route::post('customer/register-auth0', [AuthController::class, 'registerCustomerAuth0']);
@@ -55,7 +59,6 @@ Route::prefix('cart')->group(function () {
 Route::prefix('orders')->group(function () {
     Route::get('/', [OrderController::class, 'index']);
     Route::post('/', [OrderController::class, 'store']);
-    Route::post('/test', [\App\Http\Controllers\Api\OrderTestController::class, 'testStore']);
     Route::get('/{order}', [OrderController::class, 'show']);
 });
 

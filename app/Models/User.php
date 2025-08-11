@@ -21,7 +21,24 @@ class User extends Authenticatable
         'auth0_user_id',
         'role',
         'email_verified_at',
+        'email_verification_code',
+        'password_reset_code',
     ];
+    /**
+     * Check if user is email-verified (for password users)
+     */
+    public function isEmailVerified(): bool
+    {
+        return !is_null($this->email_verified_at);
+    }
+
+    /**
+     * Check if user needs to verify email (for password users)
+     */
+    public function needsEmailVerification(): bool
+    {
+        return $this->isPasswordUser() && is_null($this->email_verified_at) && !empty($this->email_verification_code);
+    }
 
     /**
      * The attributes that should be hidden for serialization.

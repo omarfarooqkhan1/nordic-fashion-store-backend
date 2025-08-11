@@ -7,76 +7,134 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\EmailVerificationCode;
 
 class AuthController extends Controller
 {
+
+    /**
+     * Send password reset code to user's email
+     */
+    public function sendResetCode(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+        if (!$user) {
+            // For security, do not reveal if user exists
+            return response()->json(['message' => 'If the email exists, a reset code has been sent.'], 200);
+        }
+
+        $code = random_int(100000, 999999);
+        $user->password_reset_code = $code;
+        $user->save();
+
+        try {
+            Mail::to($user->email)->send(new EmailVerificationCode($code));
+        } catch (\Exception $e) {
+            \Log::error('Failed to send password reset code', ['error' => $e->getMessage()]);
+        }
+
+        return response()->json(['message' => 'If the email exists, a reset code has been sent.'], 200);
+    }
+
+    /**
+     * Reset password using code
+     */
+    public function resetPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+        if (!$user || $user->password_reset_code !== $validated['code']) {
+            return response()->json(['message' => 'Invalid code or email'], 422);
+        }
+
+        $user->password = $validated['password'];
+        $user->password_reset_code = null;
+        $user->save();
+
+        return response()->json(['message' => 'Password reset successful']);
+    }
     /**
      * Register customer with password (traditional signup)
      */
     public function registerCustomer(Request $request)
     {
+        \Log::info('registerCustomer called', ['request' => $request->all()]);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
+        // Generate 6-digit code
+        $code = random_int(100000, 999999);
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => $validated['password'],
             'role' => 'customer',
-            'email_verified_at' => now(),
+            'email_verification_code' => $code,
         ]);
+        \Log::info('User created', ['user_id' => $user->id, 'email' => $user->email, 'code' => $code]);
 
-        $token = $user->createToken('customer-token')->plainTextToken;
+        // Send code to email
+        try {
+            \Mail::to($user->email)->send(new \App\Mail\EmailVerificationCode($code));
+            \Log::info('Verification email sent', ['user_id' => $user->id, 'email' => $user->email]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send verification email', ['error' => $e->getMessage()]);
+        }
 
         return response()->json([
-            'message' => 'Customer registered successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'auth_type' => 'password'
-            ],
-            'token' => $token
+            'message' => 'Verification code sent to email',
+            'user_id' => $user->id,
         ], 201);
     }
 
     /**
-     * Register customer with Auth0
+     * Verify email code for customer
      */
-    public function registerCustomerAuth0(Request $request)
+    public function verifyEmailCode(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'auth0_user_id' => 'required|string|unique:users',
+            'user_id' => 'required|exists:users,id',
+            'code' => 'required|string|size:6',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'auth0_user_id' => $validated['auth0_user_id'],
-            'role' => 'customer',
-            'email_verified_at' => now(),
-        ]);
+        $user = User::find($validated['user_id']);
+        if (!$user || $user->email_verification_code !== $validated['code']) {
+            return response()->json(['message' => 'Invalid verification code'], 422);
+        }
 
-        $token = $user->createToken('customer-auth0-token')->plainTextToken;
+        $user->email_verified_at = now();
+        $user->email_verification_code = null;
+        $user->save();
+
+        $token = $user->createToken('customer-token')->plainTextToken;
+
 
         return response()->json([
-            'message' => 'Customer registered successfully via Auth0',
+            'message' => 'Email verified successfully',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
-                'auth_type' => 'auth0'
             ],
             'token' => $token
-        ], 201);
+        ]);
     }
+
 
     /**
      * Auth0 callback for customers
@@ -155,6 +213,15 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Invalid customer credentials'
             ], 401);
+        }
+
+        // Require email verification for password users
+        if ($user->isPasswordUser() && !$user->isEmailVerified()) {
+            return response()->json([
+                'message' => 'Email not verified',
+                'user_id' => $user->id,
+                'require_verification' => true
+            ], 403);
         }
 
         $token = $user->createToken('customer-session')->plainTextToken;

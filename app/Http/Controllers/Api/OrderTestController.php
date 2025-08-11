@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -90,36 +91,85 @@ class OrderTestController extends Controller
             $order->payment_method = $request->payment_method ?? 'credit_card';
             $order->payment_status = 'pending';
             
-            // Set simple totals as numbers
-            $order->subtotal = 100.00;
-            $order->tax = 25.00;
-            $order->shipping = 9.99;
-            $order->total = 134.99;
+            // Initialize totals (will be calculated after adding items)
+            $order->subtotal = 0;
+            $order->tax = 0;
+            $order->shipping = 0;
+            $order->total = 0;
             
             \Log::info('Saving order');
             $order->save();
             \Log::info('Order saved', ['order_id' => $order->id]);
             
-            // Create some test order items
-            $testItems = [
-                ['product_name' => 'Classic Leather Jacket', 'variant_name' => 'M Black', 'price' => 299.99, 'quantity' => 1],
-                ['product_name' => 'Vintage Messenger Bag', 'variant_name' => 'One Size Brown', 'price' => 149.99, 'quantity' => 1],
-            ];
-            
-            foreach ($testItems as $itemData) {
+            // Create order items from actual cart items
+            foreach ($cart->items as $cartItem) {
+                // Check if the product variant exists
+                $variant = ProductVariant::find($cartItem->product_variant_id);
+                
+                if (!$variant) {
+                    \Log::warning('Product variant not found', ['variant_id' => $cartItem->product_variant_id]);
+                    continue; // Skip this item if variant doesn't exist
+                }
+                
+                // Create snapshot of product data
+                $productSnapshot = [
+                    'product' => $variant->product->toArray(),
+                    'variant' => $variant->toArray(),
+                ];
+                
+                // Create order item from cart item
                 \App\Models\OrderItem::create([
                     'order_id' => $order->id,
-                    'product_variant_id' => null, // Test data doesn't need real variant
-                    'product_name' => $itemData['product_name'],
-                    'variant_name' => $itemData['variant_name'],
-                    'price' => $itemData['price'],
-                    'quantity' => $itemData['quantity'],
-                    'subtotal' => $itemData['price'] * $itemData['quantity'],
-                    'product_snapshot' => json_encode(['test' => true]),
+                    'product_variant_id' => $cartItem->product_variant_id,
+                    'product_name' => $variant->product->name,
+                    'variant_name' => $variant->name ?? ($variant->size . ' ' . $variant->color),
+                    'price' => $variant->actual_price ?? $variant->product->price,
+                    'quantity' => $cartItem->quantity,
+                    'subtotal' => ($variant->actual_price ?? $variant->product->price) * $cartItem->quantity,
+                    'product_snapshot' => json_encode($productSnapshot),
+                ]);
+                
+                \Log::info('Order item created from cart', [
+                    'product_name' => $variant->product->name,
+                    'variant_name' => $variant->name ?? ($variant->size . ' ' . $variant->color),
+                    'quantity' => $cartItem->quantity
                 ]);
             }
-            \Log::info('Test order items created');
             
+            // Calculate proper totals based on actual items
+            $order->calculateTotals();
+            
+            // Save shipping address to user's address book if authenticated
+            if ($user) {
+                $this->saveShippingAddressToUser($user, $request);
+            }
+            
+            // Clear the cart after successful order creation
+            $cart->items()->delete();
+            \Log::info('Cart cleared after order creation');
+
+            // Send order confirmation email (same as production)
+            \Log::info('Attempting to send order confirmation email (test)', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer_email' => $order->shipping_email
+            ]);
+            try {
+                \Mail::to($order->shipping_email)->send(new \App\Mail\OrderConfirmation($order));
+                \Log::info('Order confirmation email sent successfully (test)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_email' => $order->shipping_email
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Failed to send order confirmation email (test)', [
+                    'error' => $e->getMessage(),
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_email' => $order->shipping_email
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Test order created successfully',
                 'order' => $order->load('items'),
@@ -131,6 +181,55 @@ class OrderTestController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * Save shipping address to user's address book if it's a new address
+     */
+    private function saveShippingAddressToUser($user, Request $request)
+    {
+        try {
+            // Check if user already has this exact address
+            $existingAddress = $user->addresses()
+                ->where('street', $request->shipping_address)
+                ->where('city', $request->shipping_city)
+                ->where('postal_code', $request->shipping_postal_code)
+                ->where('country', $request->shipping_country)
+                ->first();
+            
+            // If address doesn't exist, create it
+            if (!$existingAddress) {
+                $addressData = [
+                    'type' => 'home', // Default type
+                    'label' => $request->shipping_name . "'s Address",
+                    'street' => $request->shipping_address ?? 'Test Address',
+                    'city' => $request->shipping_city ?? 'Test City',
+                    'state' => $request->shipping_state ?? '',
+                    'postal_code' => $request->shipping_postal_code ?? '12345',
+                    'country' => $request->shipping_country ?? 'Sweden',
+                ];
+                
+                $address = $user->addresses()->create($addressData);
+                
+                // If this is the user's first address, make it default
+                $userAddressCount = $user->addresses()->count();
+                if ($userAddressCount === 1) {
+                    $address->update(['is_default' => true]);
+                }
+                
+                \Log::info('Shipping address saved to user address book', [
+                    'user_id' => $user->id,
+                    'address_id' => $address->id,
+                    'address_label' => $address->label
+                ]);
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't fail the order creation
+            \Log::error('Failed to save shipping address to user address book: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'shipping_address' => $request->shipping_address
+            ]);
         }
     }
 }
