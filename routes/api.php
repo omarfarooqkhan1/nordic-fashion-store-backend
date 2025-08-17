@@ -46,6 +46,22 @@ Route::post('login', [AuthController::class, 'login']);
 Route::post('admin/register', [AuthController::class, 'registerAdmin']);
 Route::post('admin/login', [AuthController::class, 'loginAdmin']);
 
+// Test route for debugging FormData
+Route::post('test-formdata', function (Request $request) {
+    \Log::info('Test FormData received', [
+        'all_input' => $request->all(),
+        'files' => $request->allFiles(),
+        'content_type' => $request->header('Content-Type'),
+        'method' => $request->method()
+    ]);
+    
+    return response()->json([
+        'message' => 'FormData test successful',
+        'received_data' => $request->all(),
+        'files_count' => count($request->allFiles())
+    ]);
+});
+
 // Cart routes (accessible by both authenticated customers and guests with session ID)
 Route::prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']);
@@ -53,6 +69,13 @@ Route::prefix('cart')->group(function () {
     Route::put('/{item}', [CartController::class, 'update']);
     Route::delete('/{item}', [CartController::class, 'destroy']);
     Route::delete('/', [CartController::class, 'clear']);
+    Route::post('/cleanup-expired', [CartController::class, 'cleanupExpiredGuestCarts']);
+    Route::post('/migrate-guest', [CartController::class, 'migrateGuestCart'])->middleware('auth:sanctum');
+    
+    // Custom jacket routes
+    Route::post('custom-jacket', [\App\Http\Controllers\Api\CustomJacketController::class, 'addToCart']);
+    Route::get('custom-jackets', [\App\Http\Controllers\Api\CustomJacketController::class, 'getCart']);
+    Route::delete('custom-jacket/{customItem}', [\App\Http\Controllers\Api\CustomJacketController::class, 'removeFromCart']);
 });
 
 // Order routes (accessible by both authenticated customers and guests with session ID)
@@ -60,6 +83,8 @@ Route::prefix('orders')->group(function () {
     Route::get('/', [OrderController::class, 'index']);
     Route::post('/', [OrderController::class, 'store']);
     Route::get('/{order}', [OrderController::class, 'show']);
+    Route::post('/validate-checkout', [OrderController::class, 'validateCheckout']);
+    Route::post('/release-stock-reservation', [OrderController::class, 'releaseStockReservation']);
 });
 
 /*

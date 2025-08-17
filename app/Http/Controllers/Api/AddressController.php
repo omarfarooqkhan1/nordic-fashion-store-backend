@@ -30,8 +30,8 @@ class AddressController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'type' => ['required', Rule::in(['home', 'work', 'other'])],
-            'label' => 'required|string|max:255',
+            'type' => ['nullable', Rule::in(['home', 'work', 'other'])],
+            'label' => 'nullable|string|max:255',
             'street' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'nullable|string|max:255',
@@ -90,8 +90,8 @@ class AddressController extends Controller
         }
 
         $request->validate([
-            'type' => ['required', Rule::in(['home', 'work', 'other'])],
-            'label' => 'required|string|max:255',
+            'type' => ['nullable', Rule::in(['home', 'work', 'other'])],
+            'label' => 'nullable|string|max:255',
             'street' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'required|string|max:255',

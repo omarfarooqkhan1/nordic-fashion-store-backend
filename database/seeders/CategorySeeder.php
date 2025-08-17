@@ -12,9 +12,9 @@ class CategorySeeder extends Seeder
      */
     public function run(): void
     {
+        Category::firstOrCreate(['name' => 'Clothing']);
+        Category::firstOrCreate(['name' => 'Footwear']);
         Category::firstOrCreate(['name' => 'Jackets']);
-        Category::firstOrCreate(['name' => 'Bags']);
-        Category::firstOrCreate(['name' => 'Wallets']);
         Category::firstOrCreate(['name' => 'Accessories']);
     }
 }

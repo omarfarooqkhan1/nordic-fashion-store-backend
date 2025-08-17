@@ -22,3 +22,11 @@ Schedule::command('cloudinary:manage cleanup --days=90 --force')
     ->onFailure(function () {
         \Illuminate\Support\Facades\Log::error('Failed to cleanup Cloudinary storage');
     });
+
+// Schedule expired guest cart cleanup
+Schedule::command('cart:cleanup-expired-guest-carts --days=7')
+    ->daily()
+    ->withoutOverlapping()
+    ->onFailure(function () {
+        \Illuminate\Support\Facades\Log::error('Failed to cleanup expired guest carts');
+    });

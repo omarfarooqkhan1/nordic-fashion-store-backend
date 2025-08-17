@@ -223,7 +223,7 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="brand">Nordic Fashion Store</div>
+            <div class="brand">Nord Flex</div>
             <h1>Order Confirmation</h1>
         </div>
         
@@ -303,25 +303,25 @@
                 </ul>
             </div>
             
-            <p style="margin-top: 30px;">Thank you for choosing Nordic Fashion Store. We appreciate your business and look forward to serving you again!</p>
+            <p style="margin-top: 30px;">Thank you for choosing Nord Flex. We appreciate your business and look forward to serving you again!</p>
             
             <p style="color: #6c757d; font-size: 14px; margin-top: 20px;">
                 <strong>Need help?</strong> Contact our customer service team at 
-                <a href="mailto:support@nordicskin.com" style="color: #2c5aa0;">support@nordicskin.com</a> 
+                <a href="mailto:support@nordflex.shop" style="color: #2c5aa0;">support@nordflex.shop</a> 
                 or call us at +46 8 123 456 78.
             </p>
         </div>
         
         <!-- Footer -->
         <div class="footer">
-            <p><strong>Nordic Fashion Store</strong></p>
+            <p><strong>Nord Flex</strong></p>
             <p>Bringing you the finest Nordic-inspired fashion</p>
             <p>
-                <a href="mailto:support@nordicskin.com">support@nordicskin.com</a> | 
+                <a href="mailto:support@nordflex.shop">support@nordflex.shop</a> | 
                 <a href="tel:+4681234567">+46 8 123 456 78</a>
             </p>
             <p style="margin-top: 15px; font-size: 12px; color: #ccc;">
-                © {{ date('Y') }} Nordic Fashion Store. All rights reserved.
+                © {{ date('Y') }} Nord Flex. All rights reserved.
             </p>
         </div>
     </div>

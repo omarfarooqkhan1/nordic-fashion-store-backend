@@ -5,14 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Cart;
+use App\Models\CustomJacketCartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Mail\OrderConfirmation;
+use App\Mail\OrderShipped;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class OrderController extends Controller
 {
@@ -21,7 +25,7 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        $user = $request->user();
+        $user = $this->getAuthenticatedUser($request);
         
         if (!$user) {
             $sessionId = $request->header('X-Session-Id');
@@ -86,7 +90,7 @@ class OrderController extends Controller
         }
         
         // Get cart data
-        $user = $request->user();
+        $user = $this->getAuthenticatedUser($request);
         $sessionId = $request->header('X-Session-Id');
         
         if (!$user && !$sessionId) {
@@ -98,10 +102,40 @@ class OrderController extends Controller
         if ($user) {
             $cart = Cart::where('user_id', $user->id)->first();
         } elseif ($sessionId) {
-            $cart = Cart::where('session_id', $sessionId)->first();
+            $cart = Cart::where('session_id', $sessionId)->where('user_id', null)->first();
         }
         
-        if (!$cart || $cart->items->isEmpty()) {
+        // Validate cart ownership
+        if (!$this->validateCartOwnership($request, $cart)) {
+            return response()->json(['message' => 'Unauthorized access to cart'], 403);
+        }
+        
+        // Get custom jacket cart items
+        $customJacketItems = collect();
+        if ($user) {
+            // Authenticated user - get custom jacket items by user_id
+            $customJacketItems = CustomJacketCartItem::where('user_id', $user->id)->get();
+        } elseif ($sessionId) {
+            // Guest user - get custom jacket items by session_id
+            $customJacketItems = CustomJacketCartItem::where('session_id', $sessionId)->get();
+        }
+        
+        // Check if either regular cart or custom jacket cart has items
+        $hasRegularItems = $cart && $cart->items && !$cart->items->isEmpty();
+        $hasCustomItems = $customJacketItems && !$customJacketItems->isEmpty();
+        
+        Log::info('Order creation - Cart validation', [
+            'session_id' => $sessionId,
+            'user_id' => $user ? $user->id : null,
+            'has_regular_cart' => $cart ? true : false,
+            'regular_items_count' => $cart ? $cart->items->count() : 0,
+            'custom_items_count' => $customJacketItems->count(),
+            'has_regular_items' => $hasRegularItems,
+            'has_custom_items' => $hasCustomItems,
+            'cart_valid' => $hasRegularItems || $hasCustomItems
+        ]);
+        
+        if (!$hasRegularItems && !$hasCustomItems) {
             return response()->json(['message' => 'Cart is empty'], 400);
         }
         
@@ -163,17 +197,42 @@ class OrderController extends Controller
             
             // Create order items from cart
             foreach ($cart->items as $cartItem) {
-                // Check if the product variant exists and has stock
+                // Check if the product variant exists and has sufficient stock
                 $variant = ProductVariant::find($cartItem->product_variant_id);
                 
-                if (!$variant || $variant->stock < $cartItem->quantity) {
-                    throw new \Exception('Product is out of stock: ' . ($variant ? $variant->product->name : 'Unknown product'));
+                if (!$variant) {
+                    throw new \Exception('Product variant not found: ' . $cartItem->product_variant_id);
+                }
+                
+                // Real-time stock validation
+                if ($variant->stock < $cartItem->quantity) {
+                    $availableStock = $variant->stock;
+                    $requestedQuantity = $cartItem->quantity;
+                    $productName = $variant->product->name ?? 'Unknown Product';
+                    $variantInfo = $variant->size . ' - ' . $variant->color;
+                    
+                    Log::warning('Insufficient stock detected during checkout', [
+                        'product_variant_id' => $cartItem->product_variant_id,
+                        'product_name' => $productName,
+                        'variant_info' => $variantInfo,
+                        'requested_quantity' => $requestedQuantity,
+                        'available_stock' => $availableStock,
+                        'cart_item_id' => $cartItem->id
+                    ]);
+                    
+                    throw new \Exception(
+                        "Insufficient stock for {$productName} ({$variantInfo}). " .
+                        "Requested: {$requestedQuantity}, Available: {$availableStock}. " .
+                        "Please update your cart or try again later."
+                    );
                 }
                 
                 // Create snapshot of product data
                 $productSnapshot = [
                     'product' => $variant->product->toArray(),
                     'variant' => $variant->toArray(),
+                    'stock_at_checkout' => $variant->stock, // Record stock at checkout time
+                    'requested_quantity' => $cartItem->quantity
                 ];
                 
                 // Create order item
@@ -190,20 +249,103 @@ class OrderController extends Controller
                 
                 $orderItem->save();
                 
-                // Update stock
+                // Update stock (this is now safe since we validated above)
                 $variant->stock -= $cartItem->quantity;
                 $variant->save();
+                
+                Log::info('Stock updated for product variant', [
+                    'variant_id' => $variant->id,
+                    'old_stock' => $variant->stock + $cartItem->quantity,
+                    'new_stock' => $variant->stock,
+                    'quantity_sold' => $cartItem->quantity
+                ]);
+            }
+            
+            // Create order items from custom jacket cart
+            foreach ($customJacketItems as $customItem) {
+                Log::info('Processing custom jacket item for order', [
+                    'order_id' => $order->id,
+                    'custom_item_id' => $customItem->item_id,
+                    'name' => $customItem->name,
+                    'price' => $customItem->price,
+                    'quantity' => $customItem->quantity
+                ]);
+                
+                // Create snapshot of custom jacket data
+                $customJacketSnapshot = [
+                    'custom_jacket' => [
+                        'id' => $customItem->item_id,
+                        'name' => $customItem->name,
+                        'color' => $customItem->color,
+                        'size' => $customItem->size,
+                        'front_image_url' => $customItem->front_image_url,
+                        'back_image_url' => $customItem->back_image_url,
+                        'logos' => $customItem->logos,
+                        'custom_description' => $customItem->custom_description,
+                    ]
+                ];
+                
+                // Create order item for custom jacket
+                $orderItem = new OrderItem([
+                    'order_id' => $order->id,
+                    'product_variant_id' => null, // Custom items don't have variants
+                    'product_name' => $customItem->name,
+                    'variant_name' => 'Custom Design - ' . $customItem->size . ' - ' . $customItem->color,
+                    'price' => $customItem->price,
+                    'quantity' => $customItem->quantity,
+                    'subtotal' => $customItem->price * $customItem->quantity,
+                    'product_snapshot' => $customJacketSnapshot,
+                ]);
+                
+                $orderItem->save();
+                
+                Log::info('Custom jacket order item created', [
+                    'order_item_id' => $orderItem->id,
+                    'subtotal' => $orderItem->subtotal
+                ]);
             }
             
             // Calculate order totals
             $order->calculateTotals();
             
-            // Clear the cart
-            $cart->items()->delete();
+            // Clear the regular cart
+            if ($cart) {
+                $cart->items()->delete();
+                Log::info('Regular cart cleared', ['cart_id' => $cart->id]);
+            }
+            
+            // Clear the custom jacket cart
+            if ($customJacketItems->isNotEmpty()) {
+                Log::info('Clearing custom jacket cart', [
+                    'items_count' => $customJacketItems->count(),
+                    'session_id' => $sessionId
+                ]);
+                
+                // Delete images from Cloudinary
+                $cloudinaryService = app(\App\Services\CloudinaryService::class);
+                foreach ($customJacketItems as $customItem) {
+                    $cloudinaryService->deleteCustomJacketImages(
+                        $customItem->front_image_url,
+                        $customItem->back_image_url
+                    );
+                    Log::info('Custom jacket images deleted from Cloudinary', [
+                        'custom_item_id' => $customItem->item_id,
+                        'front_image' => $customItem->front_image_url,
+                        'back_image' => $customItem->back_image_url
+                    ]);
+                }
+                
+                // Delete custom jacket items from database
+                $customJacketItems->each(function ($item) {
+                    $item->delete();
+                });
+                
+                Log::info('Custom jacket cart items deleted from database');
+            }
             
             // Save shipping address to user's address book if authenticated and it's a new address
             if ($user) {
-                $this->saveShippingAddressToUser($user, $request);
+                $this->saveShippingAddressToUserBook($request, $user);
             }
             
             DB::commit();
@@ -214,20 +356,20 @@ class OrderController extends Controller
             $order->save();
             
             // Send order confirmation email
-            \Log::info('Attempting to send order confirmation email', [
+            Log::info('Attempting to send order confirmation email', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'customer_email' => $order->shipping_email
             ]);
             try {
                 Mail::to($order->shipping_email)->send(new OrderConfirmation($order));
-                \Log::info('Order confirmation email sent successfully', [
+                Log::info('Order confirmation email sent successfully', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'customer_email' => $order->shipping_email
                 ]);
             } catch (\Exception $e) {
-                \Log::error('Failed to send order confirmation email', [
+                Log::error('Failed to send order confirmation email', [
                     'error' => $e->getMessage(),
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
@@ -293,6 +435,7 @@ class OrderController extends Controller
         $validator = Validator::make($request->all(), [
             'status' => 'sometimes|in:pending,processing,shipped,delivered,cancelled',
             'tracking_number' => 'sometimes|nullable|string|max:255',
+            'shipping_service' => 'sometimes|nullable|in:DHL,FedEx,UPS',
             'notes' => 'sometimes|nullable|string|max:1000',
         ]);
 
@@ -310,11 +453,33 @@ class OrderController extends Controller
         }
 
         // Update only provided fields
-        $updateData = array_filter($request->only(['status', 'tracking_number', 'notes']), function ($value) {
+        $updateData = array_filter($request->only(['status', 'tracking_number', 'shipping_service', 'notes']), function ($value) {
             return $value !== null;
         });
 
+        // Detect if status is being updated to 'shipped' and tracking_number is set
+        $wasShipped = $order->status === 'shipped';
         $order->update($updateData);
+        $order->refresh();
+        $nowShipped = $order->status === 'shipped';
+        if (!$wasShipped && $nowShipped && $order->tracking_number) {
+            // Send shipped notification email
+            Log::info('Attempting to send shipped email', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'customer_email' => $order->shipping_email
+            ]);
+            try {
+                Mail::to($order->shipping_email)->send(new OrderShipped($order));
+                Log::info('Shipped email sent successfully', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'customer_email' => $order->shipping_email
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send shipped email', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            }
+        }
         
         // Load the updated order with items
         $order->load('items');
@@ -326,51 +491,284 @@ class OrderController extends Controller
     }
     
     /**
-     * Save shipping address to user's address book if it's a new address
+     * Pre-checkout validation to check stock availability
      */
-    private function saveShippingAddressToUser($user, Request $request)
+    public function validateCheckout(Request $request)
     {
         try {
-            // Check if user already has this exact address
+            $user = $request->user();
+            $sessionId = $request->header('X-Session-Id');
+            
+            if (!$user && !$sessionId) {
+                return response()->json(['message' => 'No user or session ID provided'], 400);
+            }
+            
+            // Get cart data
+            $cart = null;
+            if ($user) {
+                $cart = Cart::where('user_id', $user->id)->first();
+            } elseif ($sessionId) {
+                $cart = Cart::where('session_id', $sessionId)->first();
+            }
+            
+            // Get custom jacket cart items
+            $customJacketItems = collect();
+            if ($user) {
+                // Authenticated user - get custom jacket items by user_id
+                $customJacketItems = CustomJacketCartItem::where('user_id', $user->id)->get();
+            } elseif ($sessionId) {
+                // Guest user - get custom jacket items by session_id
+                $customJacketItems = CustomJacketCartItem::where('session_id', $sessionId)->get();
+            }
+            
+            // Check if either regular cart or custom jacket cart has items
+            $hasRegularItems = $cart && $cart->items && !$cart->items->isEmpty();
+            $hasCustomItems = $customJacketItems && !$customJacketItems->isEmpty();
+            
+            if (!$hasRegularItems && !$hasCustomItems) {
+                return response()->json(['message' => 'Cart is empty'], 400);
+            }
+            
+            $validationResults = [
+                'cart_valid' => true,
+                'stock_issues' => [],
+                'warnings' => [],
+                'total_items' => 0,
+                'estimated_total' => 0
+            ];
+            
+            // Validate regular cart items stock
+            if ($hasRegularItems) {
+                foreach ($cart->items as $cartItem) {
+                    $variant = ProductVariant::find($cartItem->product_variant_id);
+                    
+                    if (!$variant) {
+                        $validationResults['stock_issues'][] = [
+                            'type' => 'error',
+                            'message' => 'Product variant not found',
+                            'cart_item_id' => $cartItem->id,
+                            'product_variant_id' => $cartItem->product_variant_id
+                        ];
+                        $validationResults['cart_valid'] = false;
+                        continue;
+                    }
+                    
+                    $validationResults['total_items'] += $cartItem->quantity;
+                    $estimatedTotal = ($variant->actual_price ?? $variant->product->price) * $cartItem->quantity;
+                    $validationResults['estimated_total'] += $estimatedTotal;
+                    
+                    if ($variant->stock < $cartItem->quantity) {
+                        $availableStock = $variant->stock;
+                        $requestedQuantity = $cartItem->quantity;
+                        $productName = $variant->product->name ?? 'Unknown Product';
+                        $variantInfo = $variant->size . ' - ' . $variant->color;
+                        
+                        $validationResults['stock_issues'][] = [
+                            'type' => 'error',
+                            'message' => "Insufficient stock for {$productName} ({$variantInfo})",
+                            'details' => "Requested: {$requestedQuantity}, Available: {$availableStock}",
+                            'cart_item_id' => $cartItem->id,
+                            'product_name' => $productName,
+                            'variant_info' => $variantInfo,
+                            'requested_quantity' => $requestedQuantity,
+                            'available_stock' => $availableStock
+                        ];
+                        $validationResults['cart_valid'] = false;
+                    } elseif ($variant->stock <= 5) {
+                        // Warning for low stock
+                        $validationResults['warnings'][] = [
+                            'type' => 'warning',
+                            'message' => "Low stock warning for {$variant->product->name} ({$variantInfo})",
+                            'details' => "Only {$variant->stock} items remaining",
+                            'cart_item_id' => $cartItem->id
+                        ];
+                    }
+                }
+            }
+            
+            // Add custom jacket items to total
+            if ($hasCustomItems) {
+                foreach ($customJacketItems as $customItem) {
+                    $validationResults['total_items'] += $customItem->quantity;
+                    $validationResults['estimated_total'] += ($customItem->price * $customItem->quantity);
+                }
+            }
+            
+            return response()->json($validationResults);
+            
+        } catch (\Exception $e) {
+            Log::error('Checkout validation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Checkout validation failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Release stock reservation for cart items (called when cart is cleared or items removed)
+     */
+    public function releaseStockReservation(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $sessionId = $request->header('X-Session-Id');
+            
+            if (!$user && !$sessionId) {
+                return response()->json(['message' => 'No user or session ID provided'], 400);
+            }
+            
+            // Get cart data
+            $cart = null;
+            if ($user) {
+                $cart = Cart::where('user_id', $user->id)->first();
+            } elseif ($sessionId) {
+                $cart = Cart::where('session_id', $sessionId)->first();
+            }
+            
+            if ($cart && $cart->items) {
+                foreach ($cart->items as $cartItem) {
+                    $variant = ProductVariant::find($cartItem->product_variant_id);
+                    if ($variant) {
+                        // Release reserved stock back to available stock
+                        $variant->stock += $cartItem->quantity;
+                        $variant->save();
+                        
+                        Log::info('Stock reservation released', [
+                            'variant_id' => $variant->id,
+                            'quantity_released' => $cartItem->quantity,
+                            'new_stock' => $variant->stock
+                        ]);
+                    }
+                }
+            }
+            
+            return response()->json(['message' => 'Stock reservation released successfully']);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to release stock reservation', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to release stock reservation',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Save shipping address to user's address book if authenticated
+     */
+    private function saveShippingAddressToUserBook(Request $request, $user)
+    {
+        try {
+            // Check if user already has this address
             $existingAddress = $user->addresses()
-                ->where('street', $request->shipping_address)
+                ->where('address', $request->shipping_address)
                 ->where('city', $request->shipping_city)
+                ->where('state', $request->shipping_state)
                 ->where('postal_code', $request->shipping_postal_code)
                 ->where('country', $request->shipping_country)
                 ->first();
             
-            // If address doesn't exist, create it
             if (!$existingAddress) {
-                $addressData = [
-                    'type' => 'home', // Default type
-                    'label' => $request->shipping_name . "'s Address",
-                    'street' => $request->shipping_address,
+                $address = new Address([
+                    'name' => $request->shipping_name,
+                    'address' => $request->shipping_address,
                     'city' => $request->shipping_city,
-                    'state' => $request->shipping_state ?? '',
+                    'state' => $request->shipping_state,
                     'postal_code' => $request->shipping_postal_code,
                     'country' => $request->shipping_country,
-                ];
+                    'phone' => $request->shipping_phone,
+                    'is_default' => false,
+                ]);
                 
-                $address = $user->addresses()->create($addressData);
+                $user->addresses()->save($address);
                 
-                // If this is the user's first address, make it default
-                $userAddressCount = $user->addresses()->count();
-                if ($userAddressCount === 1) {
-                    $address->update(['is_default' => true]);
-                }
-                
-                \Log::info('Shipping address saved to user address book', [
+                Log::info('Shipping address saved to user address book', [
                     'user_id' => $user->id,
                     'address_id' => $address->id,
-                    'address_label' => $address->label
+                    'address' => $request->shipping_address
                 ]);
             }
         } catch (\Exception $e) {
             // Log the error but don't fail the order creation
-            \Log::error('Failed to save shipping address to user address book: ' . $e->getMessage(), [
+            Log::error('Failed to save shipping address to user address book: ' . $e->getMessage(), [
                 'user_id' => $user->id,
                 'shipping_address' => $request->shipping_address
             ]);
         }
+    }
+    
+    /**
+     * Authenticate user using Sanctum token from Authorization header
+     */
+    private function authenticateWithSanctum(Request $request)
+    {
+        $authHeader = $request->header('Authorization');
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return null;
+        }
+        
+        $token = substr($authHeader, 7); // Remove 'Bearer ' prefix
+        
+        try {
+            $personalAccessToken = PersonalAccessToken::findToken($token);
+            if ($personalAccessToken && (!$personalAccessToken->expires_at || $personalAccessToken->expires_at->isFuture())) {
+                $user = $personalAccessToken->tokenable;
+                if ($user) {
+                    // For Sanctum, we need to set the user on the request
+                    $request->setUserResolver(function () use ($user) {
+                        return $user;
+                    });
+                    return $user;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to authenticate user with Sanctum token in OrderController', ['error' => $e->getMessage()]);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get authenticated user from request, handling both Auth0 and Sanctum
+     */
+    private function getAuthenticatedUser(Request $request)
+    {
+        // First, try to get user from the request (this works for Auth0 JWT tokens)
+        $user = $request->user();
+        Log::info('OrderController - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
+        
+        // If no user from request, try to authenticate using Sanctum token
+        if (!$user) {
+            $user = $this->authenticateWithSanctum($request);
+            Log::info('OrderController - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
+        }
+        
+        return $user;
+    }
+    
+    /**
+     * Validate cart ownership for checkout.
+     */
+    private function validateCartOwnership(Request $request, $cart)
+    {
+        $user = $request->user();
+        $sessionId = $request->header('X-Session-Id');
+
+        // If user is authenticated, check if the cart belongs to them
+        if ($user) {
+            return $cart && $cart->user_id === $user->id;
+        }
+
+        // If user is not authenticated, check if the cart is a session-based cart
+        return $cart && $cart->user_id === null && $cart->session_id === $sessionId;
     }
 }

@@ -31,7 +31,7 @@ class OrderConfirmation extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            from: new Address(env('MAIL_FROM_ADDRESS', 'noreply@nordicskin.com'), env('MAIL_FROM_NAME', 'Nordic Fashion Store')),
+            from: new Address(env('MAIL_FROM_ADDRESS', 'noreply@nordflex.shop'), env('MAIL_FROM_NAME', 'Nord Flex')),
             subject: 'Order Confirmation - #' . $this->order->order_number,
         );
     }

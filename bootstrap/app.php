@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'cart_access' => \App\Http\Middleware\EnsureCartSessionOrAuth::class,
+            'auth_or_session' => \App\Http\Middleware\AllowAuthOrSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

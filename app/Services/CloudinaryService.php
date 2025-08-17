@@ -282,4 +282,124 @@ class CloudinaryService
 
         return $this->uploadImage($filePath, $publicId, $folder, $highQualityOptions);
     }
+
+    /**
+     * Delete custom jacket images from Cloudinary
+     *
+     * @param string|null $frontImageUrl
+     * @param string|null $backImageUrl
+     * @return array
+     */
+    public function deleteCustomJacketImages(?string $frontImageUrl, ?string $backImageUrl): array
+    {
+        $results = [
+            'deleted' => 0,
+            'failed' => 0,
+            'errors' => []
+        ];
+
+        try {
+            // Extract public IDs from URLs
+            $frontPublicId = $this->extractPublicIdFromUrl($frontImageUrl);
+            $backPublicId = $this->extractPublicIdFromUrl($backImageUrl);
+
+            // Delete front image if exists
+            if ($frontPublicId) {
+                try {
+                    $result = $this->cloudinary->uploadApi()->destroy($frontPublicId);
+                    if ($result['result'] === 'ok') {
+                        $results['deleted']++;
+                        Log::info('Front custom jacket image deleted from Cloudinary', ['public_id' => $frontPublicId]);
+                    } else {
+                        $results['failed']++;
+                        $results['errors'][] = "Failed to delete front image: {$frontPublicId}";
+                    }
+                } catch (Exception $e) {
+                    $results['failed']++;
+                    $results['errors'][] = "Error deleting front image {$frontPublicId}: " . $e->getMessage();
+                }
+            }
+
+            // Delete back image if exists
+            if ($backPublicId) {
+                try {
+                    $result = $this->cloudinary->uploadApi()->destroy($backPublicId);
+                    if ($result['result'] === 'ok') {
+                        $results['deleted']++;
+                        Log::info('Back custom jacket image deleted from Cloudinary', ['public_id' => $backPublicId]);
+                    } else {
+                        $results['failed']++;
+                        $results['errors'][] = "Failed to delete back image: {$backPublicId}";
+                    }
+                } catch (Exception $e) {
+                    $results['failed']++;
+                    $results['errors'][] = "Error deleting back image {$backPublicId}: " . $e->getMessage();
+                }
+            }
+
+            Log::info('Custom jacket images cleanup completed', $results);
+            
+        } catch (Exception $e) {
+            Log::error('Failed to cleanup custom jacket images', [
+                'error' => $e->getMessage(),
+                'front_url' => $frontImageUrl,
+                'back_url' => $backImageUrl
+            ]);
+            
+            $results['errors'][] = 'General cleanup error: ' . $e->getMessage();
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extract public ID from Cloudinary URL
+     *
+     * @param string|null $url
+     * @return string|null
+     */
+    private function extractPublicIdFromUrl(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        try {
+            // Parse Cloudinary URL to extract public ID
+            // Example URL: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/image-name.png
+            $parts = parse_url($url);
+            if (!$parts || !isset($parts['path'])) {
+                return null;
+            }
+
+            $pathParts = explode('/', trim($parts['path'], '/'));
+            
+            // Find the upload part and get everything after it
+            $uploadIndex = array_search('upload', $pathParts);
+            if ($uploadIndex === false || $uploadIndex >= count($pathParts) - 1) {
+                return null;
+            }
+
+            // Get the public ID (everything after 'upload' excluding version)
+            $publicIdParts = array_slice($pathParts, $uploadIndex + 1);
+            
+            // Remove version if present (starts with 'v')
+            if (!empty($publicIdParts) && preg_match('/^v\d+$/', $publicIdParts[0])) {
+                array_shift($publicIdParts);
+            }
+
+            $publicId = implode('/', $publicIdParts);
+            
+            // Remove file extension
+            $publicId = preg_replace('/\.[^.]*$/', '', $publicId);
+            
+            return $publicId;
+        } catch (Exception $e) {
+            Log::warning('Failed to extract public ID from URL', [
+                'url' => $url,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
 }

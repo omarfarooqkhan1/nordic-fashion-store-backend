@@ -19,6 +19,11 @@ class Address extends Model
         'is_default',
     ];
 
+    protected $attributes = [
+        'type' => 'home',
+        'label' => 'Default Address',
+    ];
+
     protected $casts = [
         'is_default' => 'boolean',
     ];

@@ -1,6 +1,6 @@
-# Nordic Fashion Store - Backend
+# Nord Flex - Backend
 
-Laravel API backend for Nordic Fashion Store e-commerce platform.
+Laravel API backend for Nord Flex e-commerce platform.
 
 ## 🚀 Quick Start
 
@@ -56,8 +56,8 @@ DB_PASSWORD=your_password
 ### Mail Configuration
 ```env
 MAIL_MAILER=log
-MAIL_FROM_ADDRESS="noreply@nordicskin.com"
-MAIL_FROM_NAME="Nordic Fashion Store"
+MAIL_FROM_ADDRESS="noreply@nordflex.shop"
+MAIL_FROM_NAME="Nord Flex"
 ```
 
 ### Optional: Cloudinary

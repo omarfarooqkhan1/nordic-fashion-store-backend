@@ -29,7 +29,6 @@ class Order extends Model
         'shipping_city',
         'shipping_state',
         'shipping_postal_code',
-        'shipping_country',
         'billing_same_as_shipping',
         'billing_name',
         'billing_email',
@@ -42,6 +41,9 @@ class Order extends Model
         'payment_method',
         'payment_status',
         'payment_transaction_id',
+        'notes',
+        'tracking_number',
+        'shipping_service',
     ];
 
     /**
@@ -52,7 +54,6 @@ class Order extends Model
         $prefix = 'ORD';
         $timestamp = now()->format('YmdHis');
         $random = strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 4));
-        
         return $prefix . $timestamp . $random;
     }
 
