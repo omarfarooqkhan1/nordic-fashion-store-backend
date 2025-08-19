@@ -38,5 +38,23 @@ class Product extends Model
         return $this->morphMany(Image::class, 'imageable');
     }
 
+    // Relationship to ProductReviews
+    public function reviews()
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
+    // Get average rating for the product
+    public function getAverageRatingAttribute()
+    {
+        return $this->reviews()->avg('rating') ?? 0;
+    }
+
+    // Get total review count for the product
+    public function getReviewCountAttribute()
+    {
+        return $this->reviews()->count();
+    }
+
     // You might also have accessors/mutators or other methods below here
 }

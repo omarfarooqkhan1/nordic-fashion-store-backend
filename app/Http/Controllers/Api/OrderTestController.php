@@ -74,7 +74,7 @@ class OrderTestController extends Controller
             $order->shipping_city = $request->shipping_city ?? 'Test City';
             $order->shipping_state = $request->shipping_state ?? 'Test State';
             $order->shipping_postal_code = $request->shipping_postal_code ?? '12345';
-            $order->shipping_country = $request->shipping_country ?? 'Sweden';
+            $order->shipping_country = $request->shipping_country ?? 'Finland';
             
             // Set billing same as shipping
             $order->billing_same_as_shipping = true;
@@ -207,7 +207,7 @@ class OrderTestController extends Controller
                     'city' => $request->shipping_city ?? 'Test City',
                     'state' => $request->shipping_state ?? '',
                     'postal_code' => $request->shipping_postal_code ?? '12345',
-                    'country' => $request->shipping_country ?? 'Sweden',
+                    'country' => $request->shipping_country ?? 'Finland',
                 ];
                 
                 $address = $user->addresses()->create($addressData);

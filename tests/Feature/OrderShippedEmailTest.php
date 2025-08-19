@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Mail\OrderShipped;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -29,7 +30,7 @@ class OrderShippedEmailTest extends TestCase
         ];
 
         $this->actingAsAdmin();
-        $response = $this->patchJson(route('admin.orders.update', $order->id), $payload);
+        $response = $this->putJson("/api/admin/orders/{$order->id}", $payload);
         $response->assertOk();
 
         Mail::assertSent(OrderShipped::class, function ($mail) use ($order) {
@@ -39,6 +40,7 @@ class OrderShippedEmailTest extends TestCase
 
     protected function actingAsAdmin()
     {
-        // Implement admin authentication logic if needed
+        $admin = User::factory()->admin()->create();
+        return $this->actingAs($admin, 'web');
     }
 }

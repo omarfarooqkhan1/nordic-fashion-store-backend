@@ -393,4 +393,122 @@ class CustomJacketController extends Controller
         
         return null;
     }
+
+    /**
+     * Update custom jacket quantity in cart
+     */
+    public function updateQuantity(Request $request, $customItemId)
+    {
+        try {
+            Log::info('Custom jacket updateQuantity request received', [
+                'custom_item_id' => $customItemId,
+                'all_input' => $request->all(),
+                'user' => $request->user() ? ['id' => $request->user()->id, 'email' => $request->user()->email] : null,
+                'session_id_from_input' => $request->input('session_id'),
+                'session_id_from_query' => $request->query('session_id'),
+                'session_id_from_header' => $request->header('X-Session-Id')
+            ]);
+
+            $request->validate([
+                'quantity' => 'required|integer|min:1|max:10',
+                'session_id' => 'nullable|string'
+            ]);
+
+            // First, try to get user from the request (this works for Auth0 JWT tokens)
+            $user = $request->user();
+            Log::info('CustomJacket updateQuantity - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $request->user()->email] : null]);
+            
+            // If no user from request, try to authenticate using Sanctum token
+            if (!$user) {
+                $user = $this->authenticateWithSanctum($request);
+                Log::info('CustomJacket updateQuantity - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
+            }
+            
+            $sessionId = $request->query('session_id');
+            
+            // Validate access - either authenticated user or valid session ID
+            if (!$user && !$sessionId) {
+                return response()->json(['message' => 'Authentication required or valid session ID needed'], 400);
+            }
+
+            // Find the custom jacket cart item by UUID (item_id)
+            $query = CustomJacketCartItem::where('item_id', $customItemId);
+            
+            if ($user) {
+                $query->where('user_id', $user->id);
+            } else {
+                $query->where('session_id', $sessionId);
+            }
+            
+            // Debug logging for item search
+            Log::info('Searching for custom jacket item:', [
+                'customItemId' => $customItemId,
+                'user' => $user ? ['id' => $user->id, 'email' => $user->email] : null,
+                'sessionId' => $sessionId,
+                'search_by_user_id' => $user ? $user->id : 'N/A',
+                'search_by_session_id' => $sessionId ?? 'N/A',
+                'query_sql' => $query->toSql(),
+                'query_bindings' => $query->getBindings()
+            ]);
+            
+            $item = $query->first();
+            
+            if (!$item) {
+                // Log what items exist for debugging
+                $allItems = CustomJacketCartItem::all();
+                Log::warning('Custom jacket not found. Available items:', [
+                    'total_items' => $allItems->count(),
+                    'items' => $allItems->map(function($item) {
+                        return [
+                            'id' => $item->id,
+                            'item_id' => $item->item_id,
+                            'user_id' => $item->user_id,
+                            'session_id' => $item->session_id,
+                            'name' => $item->name
+                        ];
+                    })->toArray()
+                ]);
+                
+                return response()->json(['message' => 'Custom jacket not found in cart'], 404);
+            }
+
+            // Update the quantity
+            $item->quantity = $request->input('quantity');
+            $item->save();
+
+            Log::info('Custom jacket quantity updated successfully', [
+                'item_id' => $item->id,
+                'new_quantity' => $item->quantity,
+                'user_id' => $user ? $user->id : null,
+                'session_id' => $sessionId
+            ]);
+
+            // Return the updated item
+            return response()->json([
+                'id' => $item->id,
+                'color' => $item->color,
+                'size' => $item->size,
+                'quantity' => $item->quantity,
+                'price' => $item->price,
+                'frontImageUrl' => $item->front_image_url,
+                'backImageUrl' => $item->back_image_url,
+                'logos' => $item->logos,
+                'customDescription' => $item->custom_description,
+                'createdAt' => $item->created_at->toISOString(),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update custom jacket quantity', [
+                'error' => $e->getMessage(),
+                'custom_item_id' => $customItemId,
+                'user_id' => $user ?? null,
+                'session_id' => $sessionId ?? null
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to update custom jacket quantity',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class CloudinaryService
 {
+
     private $cloudinary;
 
     public function __construct()
@@ -253,6 +254,75 @@ class CloudinaryService
                 'freed_mb' => 0,
                 'error' => $e->getMessage()
             ];
+        }
+    }
+
+
+    /**
+     * Upload a video file to Cloudinary with optimized settings for free tier
+     *
+     * @param string $filePath Path to the video file
+     * @param string $publicId Optional public ID for the video
+     * @param string $folder Optional folder to organize videos
+     * @param array $options Override default upload settings
+     * @return array|null Returns the upload result or null on failure
+     */
+    public function uploadVideo(string $filePath, string $publicId = null, string $folder = 'nordic-skin-products', array $options = []): ?array
+    {
+        try {
+            // Default options for video upload
+            $defaultOptions = [
+                'folder' => $folder,
+                'resource_type' => 'video',
+                'quality' => 'auto',
+                'fetch_format' => 'auto',
+                'transformation' => [
+                    [
+                        'width' => 1280, // Max width for videos
+                        'height' => 1280, // Max height for videos
+                        'crop' => 'limit',
+                        'quality' => 'auto',
+                        'format' => 'auto'
+                    ]
+                ]
+            ];
+
+            $uploadOptions = array_merge($defaultOptions, $options);
+            if ($publicId) {
+                $uploadOptions['public_id'] = $publicId;
+            }
+
+            // Check file size before upload
+            $fileSizeBytes = filesize($filePath);
+            $fileSizeMB = round($fileSizeBytes / 1024 / 1024, 2);
+            Log::info('Uploading video to Cloudinary', [
+                'original_size_mb' => $fileSizeMB,
+                'file_path' => basename($filePath),
+                'upload_settings' => $uploadOptions
+            ]);
+
+            $result = $this->cloudinary->uploadApi()->upload($filePath, $uploadOptions);
+
+            // Log upload results
+            $uploadedSizeBytes = $result['bytes'] ?? 0;
+            $uploadedSizeMB = round($uploadedSizeBytes / 1024 / 1024, 2);
+            $compressionRatio = $fileSizeBytes > 0 ? round((1 - $uploadedSizeBytes / $fileSizeBytes) * 100, 1) : 0;
+            Log::info('Video uploaded to Cloudinary', [
+                'public_id' => $result['public_id'],
+                'secure_url' => $result['secure_url'],
+                'original_size_mb' => $fileSizeMB,
+                'uploaded_size_mb' => $uploadedSizeMB,
+                'compression_ratio' => $compressionRatio . '%',
+                'format' => $result['format'] ?? 'unknown'
+            ]);
+
+            return $result->getArrayCopy();
+        } catch (Exception $e) {
+            Log::error('Failed to upload video to Cloudinary', [
+                'file_path' => $filePath,
+                'error' => $e->getMessage()
+            ]);
+            return null;
         }
     }
 

@@ -15,3 +15,14 @@ include __DIR__.'/test-cloudinary.php';
 Route::get('/welcome', function () {
     return view('welcome');
 });
+
+// Serve sample images for development/testing
+Route::get('/sample_images/{filename}', function ($filename) {
+    $path = base_path('sample_images/' . $filename);
+    
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    
+    return response()->file($path);
+})->where('filename', '.*');

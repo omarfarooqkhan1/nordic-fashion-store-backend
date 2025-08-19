@@ -185,7 +185,10 @@ class OrderController extends Controller
             // Set payment info
             $order->payment_method = $request->payment_method;
             $order->payment_status = 'pending';
-            $order->notes = $request->notes;
+            
+            // Add shipping time information to notes
+            $shippingTimeNote = 'Estimated shipping time: 7-14 business days';
+            $order->notes = $request->notes ? $request->notes . "\n\n" . $shippingTimeNote : $shippingTimeNote;
             
             // Initialize totals
             $order->subtotal = 0;
@@ -308,41 +311,6 @@ class OrderController extends Controller
             // Calculate order totals
             $order->calculateTotals();
             
-            // Clear the regular cart
-            if ($cart) {
-                $cart->items()->delete();
-                Log::info('Regular cart cleared', ['cart_id' => $cart->id]);
-            }
-            
-            // Clear the custom jacket cart
-            if ($customJacketItems->isNotEmpty()) {
-                Log::info('Clearing custom jacket cart', [
-                    'items_count' => $customJacketItems->count(),
-                    'session_id' => $sessionId
-                ]);
-                
-                // Delete images from Cloudinary
-                $cloudinaryService = app(\App\Services\CloudinaryService::class);
-                foreach ($customJacketItems as $customItem) {
-                    $cloudinaryService->deleteCustomJacketImages(
-                        $customItem->front_image_url,
-                        $customItem->back_image_url
-                    );
-                    Log::info('Custom jacket images deleted from Cloudinary', [
-                        'custom_item_id' => $customItem->item_id,
-                        'front_image' => $customItem->front_image_url,
-                        'back_image' => $customItem->back_image_url
-                    ]);
-                }
-                
-                // Delete custom jacket items from database
-                $customJacketItems->each(function ($item) {
-                    $item->delete();
-                });
-                
-                Log::info('Custom jacket cart items deleted from database');
-            }
-            
             // Save shipping address to user's address book if authenticated and it's a new address
             if ($user) {
                 $this->saveShippingAddressToUserBook($request, $user);
@@ -350,10 +318,34 @@ class OrderController extends Controller
             
             DB::commit();
             
-            // Process payment (mock success for now)
-            $order->payment_status = 'completed';
-            $order->payment_transaction_id = 'TRANS_' . uniqid();
-            $order->save();
+            // Process payment based on payment method
+            if ($request->payment_method === 'stripe') {
+                // For Stripe, we don't process payment here - it's handled separately
+                // The order is created with 'pending' payment status
+                $order->payment_status = 'pending';
+                $order->save();
+                
+                Log::info('Order created with Stripe payment method - payment pending', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_method' => 'stripe'
+                ]);
+                
+                return response()->json([
+                    'message' => 'Order created successfully. Please complete payment.',
+                    'order' => $order->load('items'),
+                    'payment_required' => true,
+                    'payment_method' => 'stripe'
+                ], 201);
+            } else {
+                // For other payment methods (credit_card, paypal) - mock success for now
+                $order->payment_status = 'completed';
+                $order->payment_transaction_id = 'TRANS_' . uniqid();
+                $order->save();
+                
+                // Clear cart only after successful payment for non-Stripe methods
+                $this->clearCartAfterPayment($order->id);
+            }
             
             // Send order confirmation email
             Log::info('Attempting to send order confirmation email', [
@@ -389,6 +381,138 @@ class OrderController extends Controller
     }
     
     /**
+     * Clear cart after successful payment
+     */
+    public function clearCartAfterPayment($orderId)
+    {
+        $order = Order::find($orderId);
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        try {
+            DB::beginTransaction();
+            
+            // Clear the regular cart if it exists
+            if ($order->user_id) {
+                $cart = Cart::where('user_id', $order->user_id)->first();
+                if ($cart) {
+                    $cart->items()->delete();
+                    Log::info('Regular cart cleared after successful payment', ['cart_id' => $cart->id, 'order_id' => $orderId]);
+                }
+            } elseif ($order->session_id) {
+                $cart = Cart::where('session_id', $order->session_id)->where('user_id', null)->first();
+                if ($cart) {
+                    $cart->items()->delete();
+                    Log::info('Session cart cleared after successful payment', ['cart_id' => $cart->id, 'order_id' => $orderId]);
+                }
+            }
+
+            // Clear custom jacket cart items
+            $customJacketItems = collect();
+            if ($order->user_id) {
+                $customJacketItems = CustomJacketCartItem::where('user_id', $order->user_id)->get();
+            } elseif ($order->session_id) {
+                $customJacketItems = CustomJacketCartItem::where('session_id', $order->session_id)->get();
+            }
+
+            if ($customJacketItems->isNotEmpty()) {
+                Log::info('Clearing custom jacket cart after successful payment', [
+                    'items_count' => $customJacketItems->count(),
+                    'order_id' => $orderId
+                ]);
+                
+                // Delete images from Cloudinary
+                $cloudinaryService = app(\App\Services\CloudinaryService::class);
+                foreach ($customJacketItems as $customItem) {
+                    $cloudinaryService->deleteCustomJacketImages(
+                        $customItem->front_image_url,
+                        $customItem->back_image_url
+                    );
+                    Log::info('Custom jacket images deleted from Cloudinary after payment', [
+                        'custom_item_id' => $customItem->item_id,
+                        'front_image' => $customItem->front_image_url,
+                        'back_image' => $customItem->back_image_url
+                    ]);
+                }
+                
+                // Delete custom jacket items from database
+                $customJacketItems->each(function ($item) {
+                    $item->delete();
+                });
+                
+                Log::info('Custom jacket cart items deleted from database after payment');
+            }
+
+            DB::commit();
+            
+            return response()->json([
+                'message' => 'Cart cleared successfully after payment',
+                'order_id' => $orderId
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Failed to clear cart after payment', [
+                'error' => $e->getMessage(),
+                'order_id' => $orderId
+            ]);
+            
+            return response()->json([
+                'message' => 'Failed to clear cart after payment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update payment status for Stripe orders
+     */
+    public function updatePaymentStatus(Request $request, $orderId)
+    {
+        $validator = Validator::make($request->all(), [
+            'payment_status' => 'required|string|in:pending,completed,failed',
+            'payment_transaction_id' => 'required|string',
+            'stripe_payment_intent_id' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $order = Order::find($orderId);
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        // Update payment status
+        $order->payment_status = $request->payment_status;
+        $order->payment_transaction_id = $request->payment_transaction_id;
+        
+        // Store Stripe payment intent ID if provided
+        if ($request->stripe_payment_intent_id) {
+            $order->notes = $order->notes . "\n\nStripe Payment Intent: " . $request->stripe_payment_intent_id;
+        }
+        
+        $order->save();
+
+        Log::info('Order payment status updated', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'payment_status' => $request->payment_status,
+            'payment_transaction_id' => $request->payment_transaction_id,
+        ]);
+
+        return response()->json([
+            'message' => 'Payment status updated successfully',
+            'order' => $order->load('items'),
+        ]);
+    }
+
+    /**
      * Display the specified order.
      */
     public function show(Request $request, $id)
@@ -420,7 +544,7 @@ class OrderController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $orders = Order::with('items')
+        $orders = Order::with(['items.variant.images', 'items.variant.product.images'])
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -434,8 +558,8 @@ class OrderController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'status' => 'sometimes|in:pending,processing,shipped,delivered,cancelled',
-            'tracking_number' => 'sometimes|nullable|string|max:255',
-            'shipping_service' => 'sometimes|nullable|in:DHL,FedEx,UPS',
+            'tracking_number' => 'required_if:status,shipped|nullable|string|max:255',
+            'shipping_service' => 'required_if:status,shipped|nullable|in:DHL,FedEx,UPS',
             'notes' => 'sometimes|nullable|string|max:1000',
         ]);
 
@@ -444,6 +568,23 @@ class OrderController extends Controller
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
+        }
+
+        // Additional validation: if status is being set to shipped, ensure both tracking and service are provided
+        if ($request->input('status') === 'shipped') {
+            if (empty($request->input('tracking_number'))) {
+                return response()->json([
+                    'message' => 'Tracking number is required when setting order status to shipped',
+                    'errors' => ['tracking_number' => ['Tracking number is required for shipped orders']]
+                ], 422);
+            }
+            
+            if (empty($request->input('shipping_service'))) {
+                return response()->json([
+                    'message' => 'Shipping service is required when setting order status to shipped',
+                    'errors' => ['shipping_service' => ['Shipping service is required for shipped orders']]
+                ], 422);
+            }
         }
 
         $order = Order::find($id);

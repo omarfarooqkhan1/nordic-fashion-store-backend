@@ -2,7 +2,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email Verification Code</title>
+  <title>Review Approved</title>
   <style>
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -13,7 +13,7 @@
       line-height: 1.6;
     }
     .container {
-      max-width: 420px;
+      max-width: 480px;
       margin: 0 auto;
       background: #fff;
       border-radius: 12px;
@@ -30,16 +30,19 @@
       margin-bottom: 18px;
       text-align: center;
     }
-    .code {
-      font-size: 2.2rem;
+    .title {
+      font-size: 1.3rem;
       font-weight: 700;
-      letter-spacing: 0.2em;
-      background: #111;
-      color: #fff;
-      padding: 12px 0;
-      border-radius: 8px;
+      margin-bottom: 18px;
       text-align: center;
-      margin: 18px 0 24px 0;
+    }
+    .blockquote {
+      background: #fafafa;
+      padding: 14px 18px;
+      border-left: 4px solid #111;
+      margin: 18px 0;
+      border-radius: 6px;
+      color: #222;
     }
     .footer {
       color: #444;
@@ -59,10 +62,13 @@
 <body>
   <div class="container">
     <div class="brand">Nord Flex</div>
-    <p style="text-align:center;">Your email verification code is:</p>
-    <div class="code">{{ $code }}</div>
-    <p style="text-align:center;">This code will expire soon. Please enter it to complete your registration.</p>
-    <div class="footer">Thank you,<br>Nord Flex Team</div>
+    <div class="title">Your Review Has Been Approved!</div>
+    <p>Hi {{ $customerName }},</p>
+    <p>Thank you for sharing your feedback on <strong>{{ $productName }}</strong>.</p>
+    <p>Your review has been approved and is now visible on our website.</p>
+    <div class="blockquote">{{ $review->review }}</div>
+    <p>We appreciate your support!</p>
+    <div class="footer">Best regards,<br>Nord Flex Team</div>
   </div>
 </body>
 </html>

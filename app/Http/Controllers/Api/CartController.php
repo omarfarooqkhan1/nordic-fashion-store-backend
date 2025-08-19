@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\ProductVariant;
+use App\Models\CustomJacketCartItem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -44,15 +45,37 @@ class CartController extends Controller
                 return response()->json(['message' => 'Unauthorized access to cart'], 403);
             }
 
-            // Load cart with items and their relationships
-            $cart->load(['items.productVariant.product', 'items.productVariant.images']);
+            // Load cart with items and their relationships (including product images for fallback)
+            $cart->load([
+                'items.productVariant.product.images',
+                'items.productVariant.images'
+            ]);
+            
+            // Debug logging for image loading
+            Log::info('Cart loaded with relationships', [
+                'cart_id' => $cart->id,
+                'items_count' => $cart->items->count(),
+                'items_with_images' => $cart->items->map(function($item) {
+                    return [
+                        'item_id' => $item->id,
+                        'variant_id' => $item->productVariant->id,
+                        'variant_images_count' => $item->productVariant->images->count(),
+                        'product_images_count' => $item->productVariant->product->images->count(),
+                        'variant_images' => $item->productVariant->images->pluck('url')->toArray(),
+                        'product_images' => $item->productVariant->product->images->pluck('url')->toArray(),
+                    ];
+                })->toArray()
+            ]);
 
             // Automatically adjust quantities based on current stock
             $adjustedItems = $this->adjustCartQuantitiesForStock($cart);
             
             // Reload cart after adjustments
             $cart->refresh();
-            $cart->load(['items.productVariant.product', 'items.productVariant.images']);
+            $cart->load([
+                'items.productVariant.product.images',
+                'items.productVariant.images'
+            ]);
 
             // Transform the data structure to match frontend expectations
             $transformedCart = $cart->toArray();
@@ -70,6 +93,32 @@ class CartController extends Controller
                 
                 // Add variant_id for frontend compatibility
                 $item['variant_id'] = $item['variant']['id'];
+
+                // Ensure image URLs are absolute for both variant and product images
+                $makeAbsolute = function ($url) {
+                    if (is_string($url) && str_starts_with($url, '/')) {
+                        return url($url);
+                    }
+                    return $url;
+                };
+
+                if (!empty($item['variant']['images'])) {
+                    foreach ($item['variant']['images'] as &$img) {
+                        if (isset($img['url'])) {
+                            $img['url'] = $makeAbsolute($img['url']);
+                        }
+                    }
+                    unset($img);
+                }
+
+                if (!empty($item['variant']['product']['images'])) {
+                    foreach ($item['variant']['product']['images'] as &$pimg) {
+                        if (isset($pimg['url'])) {
+                            $pimg['url'] = $makeAbsolute($pimg['url']);
+                        }
+                    }
+                    unset($pimg);
+                }
             }
 
             $response = ['cart' => $transformedCart];
@@ -175,14 +224,20 @@ class CartController extends Controller
             }
 
             // Refresh cart data
-            $cart->load('items.productVariant.product');
+            $cart->load([
+                'items.productVariant.product.images',
+                'items.productVariant.images'
+            ]);
 
             // Automatically adjust quantities based on current stock
             $adjustedItems = $this->adjustCartQuantitiesForStock($cart);
             
             // Reload cart after adjustments
             $cart->refresh();
-            $cart->load('items.productVariant.product');
+            $cart->load([
+                'items.productVariant.product.images',
+                'items.productVariant.images'
+            ]);
 
             // Transform the data structure to match frontend expectations
             $transformedCart = $cart->toArray();
@@ -356,7 +411,7 @@ class CartController extends Controller
     }
 
     /**
-     * Clear all items from cart
+     * Clear all items from cart (both regular items and custom jacket items)
      */
     public function clear(Request $request)
     {
@@ -373,7 +428,44 @@ class CartController extends Controller
                 return response()->json(['message' => 'Unauthorized access to cart'], 403);
             }
 
+            // Clear regular cart items
             $cart->items()->delete();
+            Log::info('Regular cart items cleared', [
+                'cart_id' => $cart->id,
+                'user_id' => $request->user()?->id,
+                'session_id' => $request->header('X-Session-Id')
+            ]);
+
+            // Clear custom jacket cart items
+            $user = $request->user();
+            $sessionId = $request->header('X-Session-Id');
+            
+            if ($user || $sessionId) {
+                $customJacketQuery = \App\Models\CustomJacketCartItem::query();
+                
+                if ($user) {
+                    $customJacketQuery->where('user_id', $user->id);
+                } else {
+                    $customJacketQuery->where('session_id', $sessionId);
+                }
+                
+                $customJacketItems = $customJacketQuery->get();
+                
+                if ($customJacketItems->isNotEmpty()) {
+                    Log::info('Clearing custom jacket cart items', [
+                        'items_count' => $customJacketItems->count(),
+                        'user_id' => $user?->id,
+                        'session_id' => $sessionId
+                    ]);
+                    
+                    // Delete custom jacket items from database
+                    $customJacketItems->each(function ($item) {
+                        $item->delete();
+                    });
+                    
+                    Log::info('Custom jacket cart items cleared successfully');
+                }
+            }
 
             return response()->json([
                 'message' => 'Cart cleared successfully',

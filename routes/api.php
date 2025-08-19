@@ -75,6 +75,7 @@ Route::prefix('cart')->group(function () {
     // Custom jacket routes
     Route::post('custom-jacket', [\App\Http\Controllers\Api\CustomJacketController::class, 'addToCart']);
     Route::get('custom-jackets', [\App\Http\Controllers\Api\CustomJacketController::class, 'getCart']);
+    Route::put('custom-jacket/{customItem}', [\App\Http\Controllers\Api\CustomJacketController::class, 'updateQuantity']);
     Route::delete('custom-jacket/{customItem}', [\App\Http\Controllers\Api\CustomJacketController::class, 'removeFromCart']);
 });
 
@@ -156,15 +157,90 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 | Authenticated User Routes
 |--------------------------------------------------------------------------
 */
+Route::get('products/{product}/reviews', [\App\Http\Controllers\Api\ProductReviewController::class, 'index']);
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::put('/user', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     
+    // Order payment status update
+    Route::put('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus']);
+    
+    // Clear cart after successful payment
+    Route::post('orders/{order}/clear-cart', [OrderController::class, 'clearCartAfterPayment']);
+    
     // User address management
     Route::prefix('user')->group(function () {
         Route::apiResource('addresses', AddressController::class);
         Route::patch('addresses/{address}/default', [AddressController::class, 'setDefault']);
     });
+    
+    // Product review management
+    Route::prefix('products/{product}')->group(function () {
+        Route::post('reviews', [\App\Http\Controllers\Api\ProductReviewController::class, 'store']);
+        Route::put('reviews/{review}', [\App\Http\Controllers\Api\ProductReviewController::class, 'update']);
+        Route::delete('reviews/{review}', [\App\Http\Controllers\Api\ProductReviewController::class, 'destroy']);
+        Route::get('can-review', [\App\Http\Controllers\Api\ProductReviewController::class, 'canReview']);
+    });
+    
+    // Admin review moderation
+    Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
+        Route::get('reviews/pending', [\App\Http\Controllers\Api\ProductReviewController::class, 'pendingReviews']);
+        Route::post('reviews/{review}/approve', [\App\Http\Controllers\Api\ProductReviewController::class, 'approve']);
+        Route::post('reviews/{review}/reject', [\App\Http\Controllers\Api\ProductReviewController::class, 'reject']);
+    });
+});
+
+/*
+|--------------------------------------------------------------------------
+| Stripe Payment Routes
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Stripe payment routes
+    Route::prefix('stripe')->group(function () {
+        Route::post('create-payment-intent', [\App\Http\Controllers\Api\StripeController::class, 'createPaymentIntent']);
+        Route::post('confirm-payment', [\App\Http\Controllers\Api\StripeController::class, 'confirmPayment']);
+        Route::get('payment-intent/{paymentIntentId}', [\App\Http\Controllers\Api\StripeController::class, 'getPaymentIntentStatus']);
+    });
+});
+
+// Stripe webhook (no auth required)
+Route::post('stripe/webhook', [\App\Http\Controllers\Api\StripeController::class, 'handleWebhook']);
+
+// Test Stripe connection (temporary, remove in production)
+Route::get('stripe/test', function() {
+    try {
+        $stripeSecret = config('services.stripe.secret');
+        if (!$stripeSecret) {
+            return response()->json(['error' => 'Stripe secret not configured'], 500);
+        }
+        
+        \Stripe\Stripe::setApiKey($stripeSecret);
+        
+        // Try to create a simple test payment intent
+        $paymentIntent = \Stripe\PaymentIntent::create([
+            'amount' => 100, // 1 EUR in cents
+            'currency' => 'eur',
+            'automatic_payment_methods' => ['enabled' => true],
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'payment_intent_id' => $paymentIntent->id,
+            'stripe_secret_length' => strlen($stripeSecret),
+            'stripe_secret_start' => substr($stripeSecret, 0, 10) . '...',
+            'stripe_secret_end' => '...' . substr($stripeSecret, -10),
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'stripe_secret_length' => strlen($stripeSecret ?? ''),
+            'stripe_secret_start' => $stripeSecret ? (substr($stripeSecret, 0, 10) . '...') : 'N/A',
+            'stripe_secret_end' => $stripeSecret ? ('...' . substr($stripeSecret, -10)) : 'N/A',
+        ], 500);
+    }
 });

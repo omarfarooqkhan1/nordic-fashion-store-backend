@@ -28,15 +28,12 @@ class ProductSeeder extends Seeder
             ]
         );
 
-        // Product Images (Use firstOrCreate for images if you might re-run ProductSeeder without fresh)
-        // For simplicity and clarity during initial setup, createMany is often fine after a migrate:fresh
-        // If you were running this seeder repeatedly on an existing db, you'd add more logic to sync images.
-        // For now, we assume a fresh start or that images are disposable for re-seeding.
+        // Product Images - Use real sample images from the sample_images folder
         $product1->images()->delete(); // Clear existing images before re-creating
         $product1->images()->createMany([
-            ['url' => 'https://example.com/images/jacket_classic_main.jpg', 'alt_text' => 'Classic Leather Jacket Front', 'sort_order' => 0],
-            ['url' => 'https://example.com/images/jacket_classic_back.jpg', 'alt_text' => 'Classic Leather Jacket Back', 'sort_order' => 1],
-            ['url' => 'https://example.com/images/jacket_classic_detail.jpg', 'alt_text' => 'Classic Leather Jacket Detail', 'sort_order' => 2],
+            ['url' => '/sample_images/nordic-sweater-blue-front.jpg', 'alt_text' => 'Classic Leather Jacket Front', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-sweater-blue-back.jpg', 'alt_text' => 'Classic Leather Jacket Back', 'sort_order' => 1],
+            ['url' => '/sample_images/nordic-sweater-blue-front.jpg', 'alt_text' => 'Classic Leather Jacket Detail', 'sort_order' => 2],
         ]);
 
         // Variants for Product 1 (using firstOrCreate for the variant, but delete and recreate images)
@@ -51,7 +48,7 @@ class ProductSeeder extends Seeder
         );
         $variant1_1->images()->delete();
         $variant1_1->images()->createMany([
-            ['url' => 'https://example.com/images/jacket_black_m.jpg', 'alt_text' => 'Black M Jacket', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-sweater-blue-front.jpg', 'alt_text' => 'Black M Jacket', 'sort_order' => 0],
         ]);
 
         $variant1_2 = $product1->variants()->firstOrCreate(
@@ -64,8 +61,9 @@ class ProductSeeder extends Seeder
             ]
         );
         $variant1_2->images()->delete();
+        $variant1_2->images()->delete();
         $variant1_2->images()->createMany([
-            ['url' => 'https://example.com/images/jacket_black_l.jpg', 'alt_text' => 'Black L Jacket', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-sweater-blue-front.jpg', 'alt_text' => 'Black L Jacket', 'sort_order' => 0],
         ]);
 
         $variant1_3 = $product1->variants()->firstOrCreate(
@@ -79,7 +77,7 @@ class ProductSeeder extends Seeder
         );
         $variant1_3->images()->delete();
         $variant1_3->images()->createMany([
-            ['url' => 'https://example.com/images/jacket_brown_m.jpg', 'alt_text' => 'Brown M Jacket', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-sweater-blue-front.jpg', 'alt_text' => 'Brown M Jacket', 'sort_order' => 0],
         ]);
 
 
@@ -93,11 +91,11 @@ class ProductSeeder extends Seeder
             ]
         );
 
-        // Product Images
+        // Product Images - Use real sample images
         $product2->images()->delete();
         $product2->images()->createMany([
-            ['url' => 'https://example.com/images/bag_messenger_main.jpg', 'alt_text' => 'Messenger Bag Front', 'sort_order' => 0],
-            ['url' => 'https://example.com/images/bag_messenger_inside.jpg', 'alt_text' => 'Messenger Bag Interior', 'sort_order' => 1],
+            ['url' => '/sample_images/nordic-scarf-blue-front.jpg', 'alt_text' => 'Messenger Bag Front', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-scarf-blue-back.jpg', 'alt_text' => 'Messenger Bag Interior', 'sort_order' => 1],
         ]);
 
         // Variants for Product 2
@@ -112,7 +110,7 @@ class ProductSeeder extends Seeder
         );
         $variant2_1->images()->delete();
         $variant2_1->images()->createMany([
-            ['url' => 'https://example.com/images/bag_messenger_dark.jpg', 'alt_text' => 'Dark Brown Messenger Bag', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-scarf-blue-front.jpg', 'alt_text' => 'Dark Brown Messenger Bag', 'sort_order' => 0],
         ]);
 
         $variant2_2 = $product2->variants()->firstOrCreate(
@@ -125,8 +123,42 @@ class ProductSeeder extends Seeder
             ]
         );
         $variant2_2->images()->delete();
+        $variant2_2->images()->delete();
         $variant2_2->images()->createMany([
-            ['url' => 'https://example.com/images/bag_messenger_light.jpg', 'alt_text' => 'Light Brown Messenger Bag', 'sort_order' => 0],
+            ['url' => '/sample_images/nordic-scarf-blue-back.jpg', 'alt_text' => 'Light Brown Messenger Bag', 'sort_order' => 0],
+        ]);
+
+        // --- Product 3: Winter Boots ---
+        $product3 = Product::firstOrCreate(
+            ['name' => 'Winter Boots'],
+            [
+                'price' => 199.99,
+                'description' => 'Warm and comfortable winter boots perfect for cold weather.',
+                'category_id' => $jacketCategory->id, // Using jacket category for now
+            ]
+        );
+
+        // Product Images - Use real sample images
+        $product3->images()->delete();
+        $product3->images()->createMany([
+            ['url' => '/sample_images/winter-boots-brown-side.jpg', 'alt_text' => 'Winter Boots Side View', 'sort_order' => 0],
+            ['url' => '/sample_images/winter-boots-brown-sole.jpg', 'alt_text' => 'Winter Boots Sole', 'sort_order' => 1],
+            ['url' => '/sample_images/winter-boots-brown-detail.jpg', 'alt_text' => 'Winter Boots Detail', 'sort_order' => 2],
+        ]);
+
+        // Variants for Product 3
+        $variant3_1 = $product3->variants()->firstOrCreate(
+            ['sku' => 'WB-BRN-40-001'],
+            [
+                'color' => 'Brown',
+                'size' => '40',
+                'price_difference' => 0.00,
+                'stock' => 15,
+            ]
+        );
+        $variant3_1->images()->delete();
+        $variant3_1->images()->createMany([
+            ['url' => '/sample_images/winter-boots-brown-side.jpg', 'alt_text' => 'Brown Size 40 Boots', 'sort_order' => 0],
         ]);
     }
 }
