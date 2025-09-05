@@ -41,8 +41,8 @@ class ProductResource extends JsonResource
             'images' => ImageResource::collection($this->whenLoaded('images')), // Product images
             'availability' => $availability,
             'variantPrices' => $variantPrices,
-            'created_at' => $this->created_at->toDateTimeString(),
-            'updated_at' => $this->updated_at->toDateTimeString(),
+            'created_at' => $this->created_at?->toDateTimeString(),
+            'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
     }
 }

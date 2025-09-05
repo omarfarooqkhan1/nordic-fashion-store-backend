@@ -24,8 +24,8 @@ class ProductVariantResource extends JsonResource
             'stock' => $this->stock,
             'images' => ImageResource::collection($this->whenLoaded('images')), // Nested 
             'label' => "{$this->size} | {$this->color}",
-            'created_at' => $this->created_at->toDateTimeString(),
-            'updated_at' => $this->updated_at->toDateTimeString(),
+            'created_at' => $this->created_at?->toDateTimeString(),
+            'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
     }
 }

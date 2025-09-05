@@ -6,7 +6,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001'],
+    'allowed_origins' => ['http://localhost:3000', 'http://localhost:3001', 'https://www.nordflex.shop', 'https://nordflex.shop'],
 
     'allowed_origins_patterns' => [],
 

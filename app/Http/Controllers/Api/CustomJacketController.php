@@ -303,7 +303,7 @@ class CustomJacketController extends Controller
                     'backImageUrl' => $item->back_image_url,
                     'logos' => $item->logos,
                     'customDescription' => $item->custom_description,
-                    'createdAt' => $item->created_at->toISOString(),
+                    'createdAt' => $item->created_at?->toISOString(),
                 ];
             });
 

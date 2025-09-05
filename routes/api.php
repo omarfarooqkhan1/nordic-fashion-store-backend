@@ -13,6 +13,44 @@ use App\Http\Controllers\Api\CloudinaryController;
 
 /*
 |--------------------------------------------------------------------------
+| CSRF Cookie Route
+|--------------------------------------------------------------------------
+*/
+Route::get('csrf-cookie', function () {
+    try {
+        return response()->json([
+            'message' => 'CSRF cookie set', 
+            'status' => 'success',
+            'timestamp' => now()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Error setting CSRF cookie',
+            'error' => $e->getMessage(),
+            'status' => 'error'
+        ], 500);
+    }
+});
+
+// Test route to check if API is working
+Route::get('test', function () {
+    return response()->json(['message' => 'API is working', 'timestamp' => now()]);
+});
+
+// Debug route to check session and CSRF
+Route::get('debug-session', function () {
+    return response()->json([
+        'session_id' => session()->getId(),
+        'session_data' => session()->all(),
+        'csrf_token' => csrf_token(),
+        'app_key' => config('app.key'),
+        'session_driver' => config('session.driver'),
+        'timestamp' => now()
+    ]);
+});
+
+/*
+|--------------------------------------------------------------------------
 | Authentication Check Routes
 |--------------------------------------------------------------------------
 */
@@ -46,21 +84,6 @@ Route::post('login', [AuthController::class, 'login']);
 Route::post('admin/register', [AuthController::class, 'registerAdmin']);
 Route::post('admin/login', [AuthController::class, 'loginAdmin']);
 
-// Test route for debugging FormData
-Route::post('test-formdata', function (Request $request) {
-    \Log::info('Test FormData received', [
-        'all_input' => $request->all(),
-        'files' => $request->allFiles(),
-        'content_type' => $request->header('Content-Type'),
-        'method' => $request->method()
-    ]);
-    
-    return response()->json([
-        'message' => 'FormData test successful',
-        'received_data' => $request->all(),
-        'files_count' => count($request->allFiles())
-    ]);
-});
 
 // Cart routes (accessible by both authenticated customers and guests with session ID)
 Route::prefix('cart')->group(function () {
@@ -96,6 +119,18 @@ Route::prefix('orders')->group(function () {
 Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 
+// Contact form submission
+Route::post('contact', [\App\Http\Controllers\Api\ContactController::class, 'submit']);
+
+// Blog routes (public access)
+Route::get('blogs', [\App\Http\Controllers\Api\BlogController::class, 'index']);
+Route::get('blogs/{slug}', [\App\Http\Controllers\Api\BlogController::class, 'show']);
+Route::get('blogs/{slug}/related', [\App\Http\Controllers\Api\BlogController::class, 'related']);
+Route::post('blogs/{slug}/like', [\App\Http\Controllers\Api\BlogController::class, 'like']);
+Route::get('blog-tags', [\App\Http\Controllers\Api\BlogController::class, 'tags']);
+
+
+
 /*
 |--------------------------------------------------------------------------
 | Admin Protected Routes - Password-authenticated admins only
@@ -124,9 +159,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('products/bulk-upload', [ProductController::class, 'bulkUpload']);
     Route::get('products/bulk-upload/template', [ProductController::class, 'getBulkUploadTemplate']);
     
-    // Cloudinary storage management
-    Route::get('cloudinary/storage-usage', [CloudinaryController::class, 'getStorageUsage']);
-    Route::post('cloudinary/cleanup', [CloudinaryController::class, 'cleanupStorage']);
+    // Local storage management
+    Route::get('local-storage/usage', [\App\Http\Controllers\Api\LocalStorageController::class, 'getStorageUsage']);
+    Route::post('local-storage/cleanup', [\App\Http\Controllers\Api\LocalStorageController::class, 'cleanupStorage']);
+    Route::delete('local-storage/image', [\App\Http\Controllers\Api\LocalStorageController::class, 'deleteImage']);
+    Route::get('local-storage/optimized-url', [\App\Http\Controllers\Api\LocalStorageController::class, 'getOptimizedUrl']);
     
     // Order management (admin only)
     Route::prefix('admin')->group(function () {
@@ -159,6 +196,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 */
 Route::get('products/{product}/reviews', [\App\Http\Controllers\Api\ProductReviewController::class, 'index']);
 
+// Contact form submission (public route)
+Route::post('contact', function() {
+    $response = app(\App\Http\Controllers\Api\ContactController::class)->submit(request());
+    return addCorsHeaders($response);
+});
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::put('/user', [AuthController::class, 'updateProfile']);
@@ -190,21 +233,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('reviews/pending', [\App\Http\Controllers\Api\ProductReviewController::class, 'pendingReviews']);
         Route::post('reviews/{review}/approve', [\App\Http\Controllers\Api\ProductReviewController::class, 'approve']);
         Route::post('reviews/{review}/reject', [\App\Http\Controllers\Api\ProductReviewController::class, 'reject']);
+        
+        // Admin contact form management
+        Route::get('contact-forms', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'index']);
+        Route::put('contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'update']);
+        Route::delete('contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'destroy']);
+        Route::post('contact-forms/{id}/reply', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'reply']);
+        
+        // Admin blog management
+        Route::apiResource('blogs', \App\Http\Controllers\Api\Admin\AdminBlogController::class);
+        Route::get('blog-stats', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'stats']);
     });
 });
 
 /*
 |--------------------------------------------------------------------------
-| Stripe Payment Routes
+| Stripe Payment Routes (Guest and Authenticated)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum'])->group(function () {
-    // Stripe payment routes
-    Route::prefix('stripe')->group(function () {
-        Route::post('create-payment-intent', [\App\Http\Controllers\Api\StripeController::class, 'createPaymentIntent']);
-        Route::post('confirm-payment', [\App\Http\Controllers\Api\StripeController::class, 'confirmPayment']);
-        Route::get('payment-intent/{paymentIntentId}', [\App\Http\Controllers\Api\StripeController::class, 'getPaymentIntentStatus']);
-    });
+// Guest-friendly Stripe routes (no auth required)
+Route::prefix('stripe')->group(function () {
+    Route::post('create-payment-intent', [\App\Http\Controllers\Api\StripeController::class, 'createPaymentIntent']);
+    Route::post('confirm-payment', [\App\Http\Controllers\Api\StripeController::class, 'confirmPayment']);
+    Route::get('payment-intent/{paymentIntentId}', [\App\Http\Controllers\Api\StripeController::class, 'getPaymentIntentStatus']);
 });
 
 // Stripe webhook (no auth required)

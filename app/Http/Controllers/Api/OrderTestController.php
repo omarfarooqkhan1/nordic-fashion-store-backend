@@ -20,7 +20,6 @@ class OrderTestController extends Controller
     public function testStore(Request $request)
     {
         try {
-            \Log::info('Order test creation started', ['request_data' => $request->all()]);
             
             // Simple validation
             $validator = Validator::make($request->all(), [
@@ -29,7 +28,6 @@ class OrderTestController extends Controller
             ]);
             
             if ($validator->fails()) {
-                \Log::info('Validation failed', ['errors' => $validator->errors()]);
                 return response()->json(['errors' => $validator->errors()], 422);
             }
             
@@ -37,10 +35,8 @@ class OrderTestController extends Controller
             $user = $request->user();
             $sessionId = $request->header('X-Session-Id');
             
-            \Log::info('Looking for cart', ['user_id' => $user?->id, 'session_id' => $sessionId]);
             
             if (!$user && !$sessionId) {
-                \Log::info('No user or session ID provided');
                 return response()->json(['message' => 'No user or session ID provided'], 400);
             }
             
@@ -146,28 +142,11 @@ class OrderTestController extends Controller
             
             // Clear the cart after successful order creation
             $cart->items()->delete();
-            \Log::info('Cart cleared after order creation');
 
             // Send order confirmation email (same as production)
-            \Log::info('Attempting to send order confirmation email (test)', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'customer_email' => $order->shipping_email
-            ]);
             try {
                 \Mail::to($order->shipping_email)->send(new \App\Mail\OrderConfirmation($order));
-                \Log::info('Order confirmation email sent successfully (test)', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'customer_email' => $order->shipping_email
-                ]);
             } catch (\Exception $e) {
-                \Log::error('Failed to send order confirmation email (test)', [
-                    'error' => $e->getMessage(),
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'customer_email' => $order->shipping_email
-                ]);
             }
 
             return response()->json([
@@ -176,10 +155,6 @@ class OrderTestController extends Controller
             ], 201);
             
         } catch (\Exception $e) {
-            \Log::error('Order test creation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }

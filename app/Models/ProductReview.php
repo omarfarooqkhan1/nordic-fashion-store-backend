@@ -63,8 +63,6 @@ class ProductReview extends Model
             ->where('orders.user_id', $userId)
             ->where('product_variants.product_id', $productId)
             ->get();
-        \Log::info('[ReviewDebug] ALL ORDERS for user/product', ['userId' => $userId, 'productId' => $productId, 'orders' => $allOrders]);
-        \Log::info('[ReviewDebug] getPurchaseVerificationInfo called', ['userId' => $userId, 'productId' => $productId]);
         $purchaseInfo = \DB::table('order_items')
             ->join('product_variants', 'order_items.product_variant_id', '=', 'product_variants.id')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
@@ -95,17 +93,9 @@ class ProductReview extends Model
             ->where('order_items.quantity', '>', 0)
             ->first();
 
-        \Log::info('[ReviewDebug] Delivered order check', ['purchaseInfo' => $purchaseInfo]);
-        \Log::info('[ReviewDebug] Pending order check', ['pendingOrder' => $pendingOrder]);
         $hasDelivered = !is_null($purchaseInfo);
         $hasPending = !is_null($pendingOrder);
         $hasReviewed = static::hasUserReviewedProduct($userId, $productId);
-        \Log::info('[ReviewDebug] Logic flags', [
-            'hasDelivered' => $hasDelivered,
-            'hasPending' => $hasPending,
-            'hasReviewed' => $hasReviewed,
-            'can_review' => $hasDelivered && !$hasReviewed
-        ]);
 
         return [
             'has_purchased' => $hasDelivered || $hasPending,

@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,      // Now correct for Auth0
             CategorySeeder::class,
             ProductSeeder::class,
+            BlogSeeder::class,      // Add blog seeder
             // OrderSeeder::class, // Uncomment if you want to seed orders too
         ]);
     }

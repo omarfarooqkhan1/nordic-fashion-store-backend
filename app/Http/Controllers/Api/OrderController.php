@@ -33,18 +33,45 @@ class OrderController extends Controller
                 return response()->json(['message' => 'No user or session ID provided'], 400);
             }
             
-            $orders = Order::where('session_id', $sessionId)
-                ->with('items')
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $query = Order::where('session_id', $sessionId)
+                ->with('items');
         } else {
-            $orders = $user->orders()
-                ->with('items')
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $query = $user->orders()
+                ->with('items');
         }
+
+        // Filter by status
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->has('from_date') && $request->from_date) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date') && $request->to_date) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+
+        // Search by order number
+        if ($request->has('search') && $request->search) {
+            $query->where('order_number', 'like', '%' . $request->search . '%');
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 10);
+        $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
         
-        return response()->json($orders);
+        return response()->json([
+            'data' => $orders->items(),
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+                'has_more_pages' => $orders->hasMorePages(),
+            ]
+        ]);
     }
     
     /**
@@ -544,11 +571,52 @@ class OrderController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $orders = Order::with(['items.variant.images', 'items.variant.product.images'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Order::with(['items.variant.images', 'items.variant.product.images']);
+
+        // Filter by status
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->has('from_date') && $request->from_date) {
+            $query->whereDate('created_at', '>=', $request->from_date);
+        }
+        if ($request->has('to_date') && $request->to_date) {
+            $query->whereDate('created_at', '<=', $request->to_date);
+        }
+
+        // Search by order number or customer email
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', '%' . $search . '%')
+                  ->orWhere('customer_email', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
         
-        return response()->json($orders);
+        if (in_array($sortBy, ['created_at', 'order_number', 'total_amount', 'status'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 15);
+        $orders = $query->paginate($perPage);
+        
+        return response()->json([
+            'data' => $orders->items(),
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+                'has_more_pages' => $orders->hasMorePages(),
+            ]
+        ]);
     }
 
     /**

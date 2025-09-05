@@ -18,6 +18,8 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\TrustProxies::class,
         // Handles CORS
         \Fruitcake\Cors\HandleCors::class,
+        // Custom CORS handling
+        \App\Http\Middleware\HandleCors::class,
         // Prevent requests when the app is in maintenance mode
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         // Validate size of POST requests

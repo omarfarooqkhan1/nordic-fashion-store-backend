@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
-use App\Services\CloudinaryService;
+use App\Services\LocalImageService;
 
 class ProductReviewController extends Controller
 {
@@ -46,6 +46,10 @@ class ProductReviewController extends Controller
 
         $user = Auth::guard('sanctum')->user();
         \Log::info('ProductReviewController@index - Auth user', ['user' => $user]);
+        // Pagination parameters
+        $perPage = $request->get('per_page', 10);
+        $page = $request->get('page', 1);
+
         $reviews = $product->reviews()
             ->where(function ($query) use ($user) {
                 $query->where('status', 'approved');
@@ -57,7 +61,7 @@ class ProductReviewController extends Controller
             })
             ->with('user:id,name')
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate($perPage, ['*'], 'page', $page);
         \Log::info('ProductReviewController@index - Reviews count', ['count' => $reviews->count(), 'review_ids' => $reviews->pluck('id')]);
 
         // Ensure media is always an array for each review
@@ -69,7 +73,14 @@ class ProductReviewController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $reviews,
+            'data' => $reviews->items(),
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'per_page' => $reviews->perPage(),
+                'total' => $reviews->total(),
+                'has_more_pages' => $reviews->hasMorePages(),
+            ],
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
@@ -136,13 +147,15 @@ class ProductReviewController extends Controller
 
         $mediaUrls = [];
         if ($request->hasFile('media') && is_array($mediaFiles)) {
-            $cloudinaryService = app(CloudinaryService::class);
+            $localImageService = app(LocalImageService::class);
             foreach ($mediaFiles as $file) {
-                $publicId = 'reviews/' . uniqid() . '_' . $file->getClientOriginalName();
+                $filename = 'review_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $resourceType = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
-                $result = $resourceType === 'image'
-                    ? $cloudinaryService->uploadImage($file->getRealPath(), $publicId, 'nordic-skin-reviews')
-                    : $cloudinaryService->uploadVideo($file->getRealPath(), $publicId, 'nordic-skin-reviews');
+                
+                // For now, we'll handle both images and videos as images (videos will be stored as files)
+                // You might want to create a separate LocalVideoService for video handling
+                $result = $localImageService->uploadImage($file, 'reviews', $filename);
+                
                 if ($result && isset($result['secure_url'])) {
                     $mediaUrls[] = [
                         'url' => $result['secure_url'],
@@ -256,17 +269,18 @@ class ProductReviewController extends Controller
         $mediaUrls = $existingMedia;
         // Add new uploads (prevent duplicate URLs)
         if (!empty($newFiles)) {
+            $localImageService = app(LocalImageService::class);
             foreach ($newFiles as $file) {
                 // Robust: skip invalid or unreadable files
                 if (!$file instanceof \Illuminate\Http\UploadedFile || !$file->isValid() || !$file->getRealPath()) {
                     \Log::warning('Skipping invalid file in review update', ['file' => $file]);
                     continue;
                 }
-                $publicId = 'reviews/' . uniqid() . '_' . $file->getClientOriginalName();
+                $filename = 'review_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $resourceType = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
-                $result = $resourceType === 'image'
-                    ? $cloudinaryService->uploadImage($file->getRealPath(), $publicId, 'nordic-skin-reviews')
-                    : $cloudinaryService->uploadVideo($file->getRealPath(), $publicId, 'nordic-skin-reviews');
+                
+                $result = $localImageService->uploadImage($file, 'reviews', $filename);
+                
                 if ($result && isset($result['secure_url'])) {
                     // Only add if not already present
                     if (!in_array($result['secure_url'], array_column($mediaUrls, 'url'))) {

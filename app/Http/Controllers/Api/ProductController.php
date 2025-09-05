@@ -9,17 +9,61 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\ProductVariant;
 use App\Models\Image;
-use App\Services\CloudinaryService;
+use App\Services\LocalImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'variants.images', 'images'])->get();
-        return new ProductCollection($products);
+        $query = Product::with(['category', 'variants.images', 'images']);
+
+        // Search functionality
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by category
+        if ($request->has('category_id') && $request->category_id) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        // Filter by price range
+        if ($request->has('min_price') && $request->min_price) {
+            $query->where('price', '>=', $request->min_price);
+        }
+        if ($request->has('max_price') && $request->max_price) {
+            $query->where('price', '<=', $request->max_price);
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        
+        if (in_array($sortBy, ['name', 'price', 'created_at'])) {
+            $query->orderBy($sortBy, $sortOrder);
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 12);
+        $products = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => new ProductCollection($products),
+            'pagination' => [
+                'current_page' => $products->currentPage(),
+                'last_page' => $products->lastPage(),
+                'per_page' => $products->perPage(),
+                'total' => $products->total(),
+                'has_more_pages' => $products->hasMorePages(),
+            ]
+        ]);
     }
 
     public function show(Product $product)
@@ -324,18 +368,18 @@ class ProductController extends Controller
      */
     private function processProductImagesWithFiles(Product $product, array $rowData, array $imageFiles, bool $updateExisting): void
     {
-        $cloudinaryService = app(\App\Services\CloudinaryService::class);
+        $localImageService = app(\App\Services\LocalImageService::class);
         
         // Check storage usage before uploading
-        $storageUsage = $cloudinaryService->getStorageUsage();
-        if ($storageUsage && $storageUsage['percentage_used'] > 90) {
-            Log::warning('Cloudinary storage nearly full', [
-                'usage_percentage' => $storageUsage['percentage_used'],
-                'used_mb' => $storageUsage['used_mb']
+        $storageUsage = $localImageService->getStorageUsage();
+        if ($storageUsage && $storageUsage['total_size_gb'] > 5) { // 5GB limit for local storage
+            Log::warning('Local storage getting full', [
+                'total_size_gb' => $storageUsage['total_size_gb'],
+                'total_files' => $storageUsage['total_files']
             ]);
             
             // Attempt cleanup if storage is getting full
-            $cleanupResult = $cloudinaryService->cleanupOldImages(60); // Clean images older than 60 days
+            $cleanupResult = $localImageService->cleanupOldImages(60); // Clean images older than 60 days
             Log::info('Cleanup performed due to storage limit', $cleanupResult);
         }
         
@@ -347,35 +391,25 @@ class ProductController extends Controller
             if (!empty($rowData[$column]) && isset($imageFiles[$rowData[$column]])) {
                 $filePath = $imageFiles[$rowData[$column]];
                 
-                // Generate unique public ID with product name and variant info
+                // Generate unique filename with product name and variant info
                 $variantInfo = '';
                 if (!empty($rowData['color'])) $variantInfo .= '_' . strtolower($rowData['color']);
                 if (!empty($rowData['size'])) $variantInfo .= '_' . strtolower($rowData['size']);
                 
-                $publicId = preg_replace('/[^a-zA-Z0-9_-]/', '_', 
+                $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', 
                     strtolower($product->name) . $variantInfo . '_' . pathinfo($rowData[$column], PATHINFO_FILENAME)
                 );
                 
-                // Check file size and choose appropriate upload method
-                $fileSizeBytes = filesize($filePath);
-                $fileSizeMB = $fileSizeBytes / 1024 / 1024;
-                
-                if ($fileSizeMB > 5) {
-                    // Use standard compression for large files
-                    $result = $cloudinaryService->uploadImage($filePath, $publicId);
-                } else {
-                    // Use high quality for smaller files
-                    $result = $cloudinaryService->uploadHighQualityImage($filePath, $publicId);
-                }
+                // Upload to local storage
+                $result = $localImageService->uploadImage($filePath, 'products', $filename);
                 
                 if ($result) {
                     $uploadedImageUrls[] = $result['secure_url'];
                     Log::info('Image uploaded successfully', [
                         'product' => $product->name,
                         'original_file' => $rowData[$column],
-                        'public_id' => $result['public_id'],
-                        'size_reduction' => isset($result['bytes']) ? 
-                            round((1 - $result['bytes'] / $fileSizeBytes) * 100, 1) . '%' : 'unknown'
+                        'local_path' => $result['public_id'],
+                        'compression_ratio' => $result['compression_ratio'] . '%'
                     ]);
                 } else {
                     Log::error('Failed to upload image', [
@@ -549,18 +583,18 @@ class ProductController extends Controller
 
         try {
             $imageFile = $request->file('image');
-            $cloudinaryService = app(\App\Services\CloudinaryService::class);
+            $localImageService = app(\App\Services\LocalImageService::class);
             
-            // Generate public ID
-            $publicId = preg_replace('/[^a-zA-Z0-9_-]/', '_', 
+            // Generate filename
+            $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', 
                 strtolower($product->name) . '_' . time() . '_' . uniqid()
             );
             
-            // Upload to Cloudinary
-            $result = $cloudinaryService->uploadImage($imageFile->getRealPath(), $publicId);
+            // Upload to local storage
+            $result = $localImageService->uploadImage($imageFile, 'products', $filename);
             
             if (!$result) {
-                throw new \Exception('Failed to upload image to Cloudinary');
+                throw new \Exception('Failed to upload image to local storage');
             }
 
             // Get the next sort order
@@ -576,7 +610,8 @@ class ProductController extends Controller
             Log::info('Image uploaded successfully', [
                 'product_id' => $product->id,
                 'image_id' => $image->id,
-                'cloudinary_public_id' => $result['public_id']
+                'local_path' => $result['public_id'],
+                'compression_ratio' => $result['compression_ratio'] . '%'
             ]);
 
             return response()->json($image, 201);
@@ -628,13 +663,13 @@ class ProductController extends Controller
                 return response()->json(['message' => 'Image not found for this product or its variants'], 404);
             }
 
-            // Delete from Cloudinary (optional - extract public_id from URL)
-            $cloudinaryService = app(\App\Services\CloudinaryService::class);
+            // Delete from local storage
+            $localImageService = app(\App\Services\LocalImageService::class);
             
-            // Extract public ID from Cloudinary URL
-            $publicId = $this->extractPublicIdFromUrl($image->url);
-            if ($publicId) {
-                $cloudinaryService->deleteImage($publicId);
+            // Extract local path from URL
+            $localPath = $this->extractLocalPathFromUrl($image->url);
+            if ($localPath) {
+                $localImageService->deleteImage($localPath);
             }
 
             // Delete from database
@@ -792,7 +827,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Extract public ID from Cloudinary URL
+     * Extract public ID from Cloudinary URL (legacy support)
      */
     private function extractPublicIdFromUrl(string $url): ?string
     {
@@ -802,6 +837,33 @@ class ProductController extends Controller
         if (preg_match($pattern, $url, $matches)) {
             return $matches[1];
         }
+        return null;
+    }
+
+    /**
+     * Extract local path from local storage URL
+     */
+    private function extractLocalPathFromUrl(string $url): ?string
+    {
+        // Extract local path from URL
+        // Handle both /storage/ and /images/ URL patterns
+        $baseUrl = config('app.url');
+        
+        // Remove the base URL to get the path
+        if (strpos($url, $baseUrl) === 0) {
+            $path = str_replace($baseUrl, '', $url);
+            
+            // Handle /images/ pattern (maps to storage/app/public/images/)
+            if (strpos($path, '/images/') === 0) {
+                return 'images/' . basename($path);
+            }
+            
+            // Handle /storage/ pattern
+            if (strpos($path, '/storage/') === 0) {
+                return str_replace('/storage/', '', $path);
+            }
+        }
+        
         return null;
     }
 
