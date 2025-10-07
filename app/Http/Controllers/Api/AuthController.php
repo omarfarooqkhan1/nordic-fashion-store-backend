@@ -84,6 +84,7 @@ class AuthController extends Controller
             'password' => $validated['password'],
             'role' => 'customer',
             'email_verification_code' => $code,
+            'email_verification_code_created_at' => now(),
         ]);
         \Log::info('User created', ['user_id' => $user->id, 'email' => $user->email, 'code' => $code]);
 
@@ -112,8 +113,22 @@ class AuthController extends Controller
         ]);
 
         $user = User::find($validated['user_id']);
-        if (!$user || $user->email_verification_code !== $validated['code']) {
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        if (!$user->email_verification_code) {
+            return response()->json(['message' => 'No verification code found. Please request a new one.'], 422);
+        }
+
+        if ($user->email_verification_code !== $validated['code']) {
             return response()->json(['message' => 'Invalid verification code'], 422);
+        }
+
+        // Check if code is expired (15 minutes)
+        if ($user->email_verification_code_created_at && 
+            $user->email_verification_code_created_at->diffInMinutes(now()) > 15) {
+            return response()->json(['message' => 'Verification code has expired. Please request a new one.'], 422);
         }
 
         $user->email_verified_at = now();
@@ -132,6 +147,47 @@ class AuthController extends Controller
                 'role' => $user->role,
             ],
             'token' => $token
+        ]);
+    }
+
+    /**
+     * Resend verification code for customer
+     */
+    public function resendVerificationCode(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $user = User::find($validated['user_id']);
+        
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Check if user is already verified
+        if ($user->isEmailVerified()) {
+            return response()->json(['message' => 'Email is already verified'], 422);
+        }
+
+        // Generate new 6-digit code
+        $code = random_int(100000, 999999);
+        $user->email_verification_code = $code;
+        $user->email_verification_code_created_at = now();
+        $user->save();
+
+        // Send code to email
+        try {
+            Mail::to($user->email)->send(new EmailVerificationCode($code));
+            \Log::info('Verification code resent', ['user_id' => $user->id, 'email' => $user->email]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to resend verification email', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to send verification code'], 500);
+        }
+
+        return response()->json([
+            'message' => 'Verification code resent to your email',
+            'user_id' => $user->id,
         ]);
     }
 

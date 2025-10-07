@@ -116,7 +116,99 @@ Route::prefix('orders')->group(function () {
 | Public Routes - Read-only access for everyone
 |--------------------------------------------------------------------------
 */
-Route::apiResource('products', ProductController::class)->only(['index', 'show']);
+// Debug route to test database connectivity
+Route::get('debug/products', function() {
+    try {
+        $count = \App\Models\Product::count();
+        return response()->json([
+            'status' => 'ok',
+            'products_count' => $count,
+            'database' => 'connected'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Simple test endpoint for XHR debugging
+Route::get('test', function() {
+    return response()->json([
+        'message' => 'API is working',
+        'timestamp' => now(),
+        'cors' => 'enabled'
+    ]);
+});
+
+// Simplified products endpoint for debugging
+Route::get('products', function() {
+    try {
+        $products = \App\Models\Product::with(['category', 'images'])->get();
+        return response()->json([
+            'data' => $products->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'price' => $product->price,
+                    'gender' => $product->gender,
+                    'category' => $product->category ? [
+                        'id' => $product->category->id,
+                        'name' => $product->category->name
+                    ] : null,
+                    'images' => $product->images->map(function($image) {
+                        return [
+                            'id' => $image->id,
+                            'url' => $image->url,
+                            'alt_text' => $image->alt_text
+                        ];
+                    })
+                ];
+            })
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Failed to load products',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
+Route::get('products/{id}', function($id) {
+    try {
+        $product = \App\Models\Product::with(['category', 'images'])->find($id);
+        if (!$product) {
+            return response()->json(['error' => 'Product not found'], 404);
+        }
+        return response()->json([
+            'data' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'description' => $product->description,
+                'price' => $product->price,
+                'gender' => $product->gender,
+                'category' => $product->category ? [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name
+                ] : null,
+                'images' => $product->images->map(function($image) {
+                    return [
+                        'id' => $image->id,
+                        'url' => $image->url,
+                        'alt_text' => $image->alt_text
+                    ];
+                })
+            ]
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Failed to load product',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 
 // Contact form submission
@@ -127,6 +219,7 @@ Route::get('blogs', [\App\Http\Controllers\Api\BlogController::class, 'index']);
 Route::get('blogs/{slug}', [\App\Http\Controllers\Api\BlogController::class, 'show']);
 Route::get('blogs/{slug}/related', [\App\Http\Controllers\Api\BlogController::class, 'related']);
 Route::post('blogs/{slug}/like', [\App\Http\Controllers\Api\BlogController::class, 'like']);
+Route::post('blogs/{slug}/view', [\App\Http\Controllers\Api\BlogController::class, 'view']);
 Route::get('blog-tags', [\App\Http\Controllers\Api\BlogController::class, 'tags']);
 
 
@@ -197,16 +290,18 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
 Route::get('products/{product}/reviews', [\App\Http\Controllers\Api\ProductReviewController::class, 'index']);
 
 // Contact form submission (public route)
-Route::post('contact', function() {
-    $response = app(\App\Http\Controllers\Api\ContactController::class)->submit(request());
-    return addCorsHeaders($response);
-});
+Route::post('contact', [\App\Http\Controllers\Api\ContactController::class, 'submit']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    $userController = '\App\Http\Controllers\Api\UserController';
+    
     Route::get('/user', [AuthController::class, 'me']);
     Route::put('/user', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    
+    // Get user addresses
+    Route::get('/user/addresses', [$userController, 'getAddresses']);
     
     // Order payment status update
     Route::put('orders/{order}/payment-status', [OrderController::class, 'updatePaymentStatus']);

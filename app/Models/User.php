@@ -22,6 +22,7 @@ class User extends Authenticatable
         'role',
         'email_verified_at',
         'email_verification_code',
+        'email_verification_code_created_at',
         'password_reset_code',
     ];
     /**
@@ -55,6 +56,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_code_created_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

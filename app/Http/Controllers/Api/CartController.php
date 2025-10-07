@@ -12,7 +12,6 @@ use App\Models\CustomJacketCartItem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use App\Services\CloudinaryService;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class CartController extends Controller

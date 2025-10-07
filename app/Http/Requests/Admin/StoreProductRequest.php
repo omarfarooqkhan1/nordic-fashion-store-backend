@@ -25,7 +25,7 @@ class StoreProductRequest extends FormRequest
             'variants.*.price_difference' => 'nullable|numeric',
             'variants.*.stock' => 'required_with:variants|integer|min:0',
             'images' => 'nullable|array',
-            'images.*.url' => 'required_with:images|url',
+            'images.*.url' => 'nullable|url',
             'images.*.alt_text' => 'nullable|string|max:255',
             'images.*.sort_order' => 'nullable|integer|min:0',
         ];

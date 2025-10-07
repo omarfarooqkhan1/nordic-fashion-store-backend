@@ -16,10 +16,8 @@ class Kernel extends HttpKernel
     protected $middleware = [
         // Trust proxies for things like load balancers and proxies
         \App\Http\Middleware\TrustProxies::class,
-        // Handles CORS
+        // Handle CORS
         \Fruitcake\Cors\HandleCors::class,
-        // Custom CORS handling
-        \App\Http\Middleware\HandleCors::class,
         // Prevent requests when the app is in maintenance mode
         \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         // Validate size of POST requests

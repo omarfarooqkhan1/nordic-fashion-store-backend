@@ -35,8 +35,9 @@ class ProductResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'gender' => $this->gender,
             'price' => $this->price,
-            'category' => new CategoryResource($this->whenLoaded('category')), // Nested category
+            'category' => $this->whenLoaded('category') ? new CategoryResource($this->whenLoaded('category')) : null,
             'variants' => ProductVariantResource::collection($variants), // Nested variants
             'images' => ImageResource::collection($this->whenLoaded('images')), // Product images
             'availability' => $availability,

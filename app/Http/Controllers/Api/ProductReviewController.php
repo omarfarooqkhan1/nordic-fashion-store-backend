@@ -254,14 +254,18 @@ class ProductReviewController extends Controller
             ], 422);
         }
 
-        $cloudinaryService = app(CloudinaryService::class);
+        $localImageService = app(LocalImageService::class);
         $oldMedia = $review->media ?? [];
 
-        // Delete removed media from Cloudinary
+        // Delete removed media from local storage
         $existingUrls = array_column($existingMedia, 'url');
         foreach ($oldMedia as $mediaItem) {
             if (!in_array($mediaItem['url'], $existingUrls)) {
-                $cloudinaryService->deleteImage($mediaItem['url']);
+                // Extract local path from URL and delete
+                $localPath = $this->extractLocalPathFromUrl($mediaItem['url']);
+                if ($localPath) {
+                    $localImageService->deleteImage($localPath);
+                }
             }
         }
 
@@ -269,7 +273,6 @@ class ProductReviewController extends Controller
         $mediaUrls = $existingMedia;
         // Add new uploads (prevent duplicate URLs)
         if (!empty($newFiles)) {
-            $localImageService = app(LocalImageService::class);
             foreach ($newFiles as $file) {
                 // Robust: skip invalid or unreadable files
                 if (!$file instanceof \Illuminate\Http\UploadedFile || !$file->isValid() || !$file->getRealPath()) {
@@ -456,4 +459,38 @@ class ProductReviewController extends Controller
         return response()->json($response);
     }
 
+    /**
+     * Extract local path from local storage URL
+     *
+     * @param string|null $url
+     * @return string|null
+     */
+    private function extractLocalPathFromUrl(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        try {
+            $baseUrl = config('app.url');
+            
+            // Remove the base URL to get the path
+            if (strpos($url, $baseUrl) === 0) {
+                $path = str_replace($baseUrl, '', $url);
+                
+                // Handle /storage/ pattern
+                if (strpos($path, '/storage/') === 0) {
+                    return str_replace('/storage/', '', $path);
+                }
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            \Log::warning('Failed to extract local path from URL', [
+                'url' => $url,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
 }

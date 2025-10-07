@@ -449,14 +449,21 @@ class OrderController extends Controller
                     'order_id' => $orderId
                 ]);
                 
-                // Delete images from Cloudinary
-                $cloudinaryService = app(\App\Services\CloudinaryService::class);
+                // Delete images from local storage
+                $localImageService = app(\App\Services\LocalImageService::class);
                 foreach ($customJacketItems as $customItem) {
-                    $cloudinaryService->deleteCustomJacketImages(
-                        $customItem->front_image_url,
-                        $customItem->back_image_url
-                    );
-                    Log::info('Custom jacket images deleted from Cloudinary after payment', [
+                    // Extract local paths and delete
+                    $frontPath = $this->extractLocalPathFromUrl($customItem->front_image_url);
+                    $backPath = $this->extractLocalPathFromUrl($customItem->back_image_url);
+                    
+                    if ($frontPath) {
+                        $localImageService->deleteImage($frontPath);
+                    }
+                    if ($backPath) {
+                        $localImageService->deleteImage($backPath);
+                    }
+                    
+                    Log::info('Custom jacket images deleted from local storage after payment', [
                         'custom_item_id' => $customItem->item_id,
                         'front_image' => $customItem->front_image_url,
                         'back_image' => $customItem->back_image_url
@@ -888,67 +895,47 @@ class OrderController extends Controller
             
             if (!$existingAddress) {
                 $address = new Address([
+                    'user_id' => $user->id,
+                    'type' => 'shipping',
+                    'label' => 'My Address',
                     'name' => $request->shipping_name,
-                    'address' => $request->shipping_address,
+                    'street' => $request->shipping_address,
                     'city' => $request->shipping_city,
                     'state' => $request->shipping_state,
                     'postal_code' => $request->shipping_postal_code,
                     'country' => $request->shipping_country,
                     'phone' => $request->shipping_phone,
-                    'is_default' => false,
+                    'is_default' => true, // The Address model will handle setting default
                 ]);
                 
-                $user->addresses()->save($address);
+                $address->save();
                 
                 Log::info('Shipping address saved to user address book', [
                     'user_id' => $user->id,
                     'address_id' => $address->id,
                     'address' => $request->shipping_address
                 ]);
+                
+                return $address;
             }
+            
+            return $existingAddress;
+            
         } catch (\Exception $e) {
-            // Log the error but don't fail the order creation
-            Log::error('Failed to save shipping address to user address book: ' . $e->getMessage(), [
+            Log::error('Failed to save shipping address to user address book', [
                 'user_id' => $user->id,
-                'shipping_address' => $request->shipping_address
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-        }
-    }
-    
-    /**
-     * Authenticate user using Sanctum token from Authorization header
-     */
-    private function authenticateWithSanctum(Request $request)
-    {
-        $authHeader = $request->header('Authorization');
-        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            
+            // Don't fail the order if address saving fails
             return null;
         }
-        
-        $token = substr($authHeader, 7); // Remove 'Bearer ' prefix
-        
-        try {
-            $personalAccessToken = PersonalAccessToken::findToken($token);
-            if ($personalAccessToken && (!$personalAccessToken->expires_at || $personalAccessToken->expires_at->isFuture())) {
-                $user = $personalAccessToken->tokenable;
-                if ($user) {
-                    // For Sanctum, we need to set the user on the request
-                    $request->setUserResolver(function () use ($user) {
-                        return $user;
-                    });
-                    return $user;
-                }
-            }
-        } catch (\Exception $e) {
-            Log::warning('Failed to authenticate user with Sanctum token in OrderController', ['error' => $e->getMessage()]);
-        }
-        
-        return null;
     }
     
     /**
      * Get authenticated user from request, handling both Auth0 and Sanctum
-     */
+{{ ... }}
     private function getAuthenticatedUser(Request $request)
     {
         // First, try to get user from the request (this works for Auth0 JWT tokens)
@@ -979,5 +966,40 @@ class OrderController extends Controller
 
         // If user is not authenticated, check if the cart is a session-based cart
         return $cart && $cart->user_id === null && $cart->session_id === $sessionId;
+    }
+
+    /**
+     * Extract local path from local storage URL
+     *
+     * @param string|null $url
+     * @return string|null
+     */
+    private function extractLocalPathFromUrl(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        try {
+            $baseUrl = config('app.url');
+            
+            // Remove the base URL to get the path
+            if (strpos($url, $baseUrl) === 0) {
+                $path = str_replace($baseUrl, '', $url);
+                
+                // Handle /storage/ pattern
+                if (strpos($path, '/storage/') === 0) {
+                    return str_replace('/storage/', '', $path);
+                }
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract local path from URL', [
+                'url' => $url,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 }

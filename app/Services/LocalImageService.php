@@ -61,7 +61,8 @@ class LocalImageService
             if ($folder === 'blogs') {
                 $directory = $folder; // Direct to blogs/ folder
             } else {
-                $directory = $this->basePath . '/' . $folder . '/' . date('Y/m');
+                // Store all images directly under /images for simplicity
+                $directory = $this->basePath;
             }
             $fullPath = $directory . '/' . $filename;
 

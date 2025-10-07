@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomJacketCartItem;
-use App\Services\CloudinaryService;
+use App\Services\LocalImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -13,11 +13,11 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class CustomJacketController extends Controller
 {
-    protected $cloudinaryService;
+    protected $localImageService;
 
-    public function __construct(CloudinaryService $cloudinaryService)
+    public function __construct(LocalImageService $localImageService)
     {
-        $this->cloudinaryService = $cloudinaryService;
+        $this->localImageService = $localImageService;
     }
 
     /**
@@ -81,35 +81,76 @@ class CustomJacketController extends Controller
                 return response()->json(['message' => 'Invalid jacket data'], 400);
             }
 
-            // Generate unique filename for this jacket design
-            $timestamp = now()->timestamp;
-            $colorName = str_replace('#', '', $jacketData['color']);
-            $publicId = "custom-jackets/{$colorName}-{$timestamp}";
-
             // Get the uploaded files
             $frontImage = $request->file('front_image');
             $backImage = $request->file('back_image');
 
-            // Save images temporarily and get paths
-            $frontImagePath = $frontImage->getPathname();
-            $backImagePath = $backImage->getPathname();
+            // Validate files exist
+            if (!$frontImage || !$backImage) {
+                Log::error('Custom jacket images missing', [
+                    'has_front' => $frontImage ? 'yes' : 'no',
+                    'has_back' => $backImage ? 'yes' : 'no'
+                ]);
+                throw new \Exception('Front and back images are required');
+            }
 
-            // Upload to Cloudinary
-            $frontResult = $this->cloudinaryService->uploadImage(
-                $frontImagePath,
-                "{$publicId}-front",
-                'custom-jackets'
-            );
+            // Validate files are valid
+            if (!$frontImage->isValid() || !$backImage->isValid()) {
+                Log::error('Custom jacket images invalid', [
+                    'front_valid' => $frontImage->isValid(),
+                    'back_valid' => $backImage->isValid(),
+                    'front_error' => $frontImage->getError(),
+                    'back_error' => $backImage->getError()
+                ]);
+                throw new \Exception('Invalid image files uploaded');
+            }
 
-            $backResult = $this->cloudinaryService->uploadImage(
-                $backImagePath,
-                "{$publicId}-back",
-                'custom-jackets'
-            );
+            Log::info('Uploading custom jacket images', [
+                'front_name' => $frontImage->getClientOriginalName(),
+                'back_name' => $backImage->getClientOriginalName(),
+                'front_size' => $frontImage->getSize(),
+                'back_size' => $backImage->getSize()
+            ]);
+
+            // Upload to local storage
+            try {
+                $frontResult = $this->localImageService->uploadImage(
+                    $frontImage,
+                    'custom-jackets'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to upload front image', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw new \Exception('Failed to upload front image: ' . $e->getMessage());
+            }
+
+            try {
+                $backResult = $this->localImageService->uploadImage(
+                    $backImage,
+                    'custom-jackets'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to upload back image', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw new \Exception('Failed to upload back image: ' . $e->getMessage());
+            }
 
             if (!$frontResult || !$backResult) {
-                throw new \Exception('Failed to upload images to Cloudinary');
+                Log::error('Upload returned null', [
+                    'front_result' => $frontResult,
+                    'back_result' => $backResult
+                ]);
+                throw new \Exception('Failed to upload images to local storage');
             }
+
+            Log::info('Custom jacket images uploaded successfully', [
+                'front_url' => $frontResult['secure_url'],
+                'back_url' => $backResult['secure_url']
+            ]);
 
             // Debug logging before creating the record
             Log::info('Creating custom jacket record with values:', [
@@ -229,8 +270,8 @@ class CustomJacketController extends Controller
                 return response()->json(['error' => 'Custom jacket not found'], 404);
             }
 
-            // Delete images from Cloudinary
-            $this->cloudinaryService->deleteCustomJacketImages(
+            // Delete images from local storage
+            $this->deleteCustomJacketImages(
                 $customItem->front_image_url,
                 $customItem->back_image_url
             );
@@ -509,6 +550,108 @@ class CustomJacketController extends Controller
                 'error' => 'Failed to update custom jacket quantity',
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Delete custom jacket images from local storage
+     *
+     * @param string|null $frontImageUrl
+     * @param string|null $backImageUrl
+     * @return array
+     */
+    private function deleteCustomJacketImages(?string $frontImageUrl, ?string $backImageUrl): array
+    {
+        $results = [
+            'deleted' => 0,
+            'failed' => 0,
+            'errors' => []
+        ];
+
+        try {
+            // Extract local paths from URLs
+            $frontPath = $this->extractLocalPathFromUrl($frontImageUrl);
+            $backPath = $this->extractLocalPathFromUrl($backImageUrl);
+
+            // Delete front image if exists
+            if ($frontPath) {
+                try {
+                    if ($this->localImageService->deleteImage($frontPath)) {
+                        $results['deleted']++;
+                        Log::info('Front custom jacket image deleted from local storage', ['path' => $frontPath]);
+                    } else {
+                        $results['failed']++;
+                        $results['errors'][] = "Failed to delete front image: {$frontPath}";
+                    }
+                } catch (\Exception $e) {
+                    $results['failed']++;
+                    $results['errors'][] = "Error deleting front image {$frontPath}: " . $e->getMessage();
+                }
+            }
+
+            // Delete back image if exists
+            if ($backPath) {
+                try {
+                    if ($this->localImageService->deleteImage($backPath)) {
+                        $results['deleted']++;
+                        Log::info('Back custom jacket image deleted from local storage', ['path' => $backPath]);
+                    } else {
+                        $results['failed']++;
+                        $results['errors'][] = "Failed to delete back image: {$backPath}";
+                    }
+                } catch (\Exception $e) {
+                    $results['failed']++;
+                    $results['errors'][] = "Error deleting back image {$backPath}: " . $e->getMessage();
+                }
+            }
+
+            Log::info('Custom jacket images cleanup completed', $results);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to cleanup custom jacket images', [
+                'error' => $e->getMessage(),
+                'front_url' => $frontImageUrl,
+                'back_url' => $backImageUrl
+            ]);
+            
+            $results['errors'][] = 'General cleanup error: ' . $e->getMessage();
+        }
+
+        return $results;
+    }
+
+    /**
+     * Extract local path from local storage URL
+     *
+     * @param string|null $url
+     * @return string|null
+     */
+    private function extractLocalPathFromUrl(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        try {
+            $baseUrl = config('app.url');
+            
+            // Remove the base URL to get the path
+            if (strpos($url, $baseUrl) === 0) {
+                $path = str_replace($baseUrl, '', $url);
+                
+                // Handle /storage/ pattern
+                if (strpos($path, '/storage/') === 0) {
+                    return str_replace('/storage/', '', $path);
+                }
+            }
+            
+            return null;
+        } catch (\Exception $e) {
+            Log::warning('Failed to extract local path from URL', [
+                'url' => $url,
+                'error' => $e->getMessage()
+            ]);
+            return null;
         }
     }
 }

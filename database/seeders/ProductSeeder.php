@@ -24,6 +24,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 299.99,
                 'description' => 'A timeless classic crafted from premium black lambskin leather. Features a sleek design with clean lines and a perfect fit. The supple leather develops a beautiful patina over time, making each jacket unique to its owner.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -48,6 +49,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 319.99,
                 'description' => 'A contemporary black leather jacket with modern design elements. Features asymmetrical zippers and a more fitted silhouette. Perfect for those who want a sleek, urban look with premium leather quality.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -70,6 +72,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 289.99,
                 'description' => 'A vintage-inspired black leather jacket with distressed details and classic biker styling. Features multiple pockets and a relaxed fit. Perfect for those who appreciate retro aesthetics with modern comfort.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -95,6 +98,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 329.99,
                 'description' => 'Handcrafted from rich brown full-grain leather with a vintage-inspired design. Features intricate stitching details and a comfortable fit that molds to your body. Perfect for those who appreciate classic American style with a modern twist.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -117,6 +121,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 299.99,
                 'description' => 'A traditional brown leather jacket with timeless appeal. Features clean lines and a versatile design that works for both casual and semi-formal occasions. Made from high-quality brown leather that ages beautifully.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -142,6 +147,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 309.99,
                 'description' => 'A sophisticated dark brown leather jacket with a rich, deep color. Features premium leather construction and a refined design. Perfect for those who want a more formal leather jacket option.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -166,6 +172,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 319.99,
                 'description' => 'A bold and distinctive burgundy leather jacket that makes a statement. Crafted from premium leather with a rich, deep color that stands out from the crowd. Features modern design elements and exceptional craftsmanship.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -188,6 +195,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 339.99,
                 'description' => 'An elegant burgundy leather jacket with sophisticated styling. Features premium leather construction and refined details. Perfect for those who want a unique color with exceptional quality and style.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -212,6 +220,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 279.99,
                 'description' => 'A sophisticated navy blue leather jacket that combines elegance with durability. Made from high-quality leather with a smooth finish and contemporary styling. Perfect for both casual and semi-formal occasions.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -236,6 +245,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 289.99,
                 'description' => 'A rugged olive green leather jacket inspired by military and aviation heritage. Built to last with reinforced stitching and durable hardware. The earthy green color pairs perfectly with casual and outdoor wear.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -260,6 +270,7 @@ class ProductSeeder extends Seeder
             [
                 'price' => 299.99,
                 'description' => 'A striking white leather jacket that makes a bold fashion statement. Crafted from premium white leather with a clean, minimalist design. Perfect for those who want to stand out with a unique and elegant look.',
+                'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
             ]
         );
@@ -275,6 +286,111 @@ class ProductSeeder extends Seeder
             ['size' => 'M', 'stock' => 20],
             ['size' => 'L', 'stock' => 18],
         ], 'leather-jacket-white-1');
+
+        // --- WOMEN'S LEATHER JACKETS ---
+
+        // Product 12: Women's Classic Black Leather Jacket (Style 1)
+        $product12 = Product::firstOrCreate(
+            ['name' => 'Women\'s Classic Black Leather Jacket'],
+            [
+                'price' => 279.99,
+                'description' => 'A sophisticated black leather jacket designed specifically for women. Features a tailored fit with feminine details and premium black leather construction. Perfect for the modern woman who values both style and quality.',
+                'gender' => 'female',
+                'category_id' => $jacketCategory->id,
+            ]
+        );
+
+        $product12->images()->delete();
+        $product12->images()->createMany([
+            ['url' => '/storage/images/leather-jacket-woman-black-1-1.jpeg', 'alt_text' => 'Women\'s Classic Black Leather Jacket View 1', 'sort_order' => 0],
+            ['url' => '/storage/images/leather-jacket-woman-black-1-2.jpeg', 'alt_text' => 'Women\'s Classic Black Leather Jacket View 2', 'sort_order' => 1],
+            ['url' => '/storage/images/leather-jacket-woman-black-1-3.jpeg', 'alt_text' => 'Women\'s Classic Black Leather Jacket View 3', 'sort_order' => 2],
+        ]);
+
+        $this->createVariants($product12, 'Black', 'WCBLJ-BLK', [
+            ['size' => 'XS', 'stock' => 15],
+            ['size' => 'S', 'stock' => 25],
+            ['size' => 'M', 'stock' => 30],
+            ['size' => 'L', 'stock' => 20],
+        ], 'leather-jacket-woman-black-1');
+
+        // Product 13: Women's Modern Black Leather Jacket (Style 2)
+        $product13 = Product::firstOrCreate(
+            ['name' => 'Women\'s Modern Black Leather Jacket'],
+            [
+                'price' => 299.99,
+                'description' => 'A contemporary black leather jacket with sleek design elements tailored for women. Features modern cuts and premium leather quality. Ideal for the fashion-forward woman seeking a statement piece.',
+                'gender' => 'female',
+                'category_id' => $jacketCategory->id,
+            ]
+        );
+
+        $product13->images()->delete();
+        $product13->images()->createMany([
+            ['url' => '/storage/images/leather-jacket-woman-black-2-1.jpeg', 'alt_text' => 'Women\'s Modern Black Leather Jacket View 1', 'sort_order' => 0],
+            ['url' => '/storage/images/leather-jacket-woman-black-2-2.jpeg', 'alt_text' => 'Women\'s Modern Black Leather Jacket View 2', 'sort_order' => 1],
+            ['url' => '/storage/images/leather-jacket-woman-black-2-3.jpeg', 'alt_text' => 'Women\'s Modern Black Leather Jacket View 3', 'sort_order' => 2],
+        ]);
+
+        $this->createVariants($product13, 'Black', 'WMBLJ-BLK', [
+            ['size' => 'XS', 'stock' => 12],
+            ['size' => 'S', 'stock' => 22],
+            ['size' => 'M', 'stock' => 28],
+            ['size' => 'L', 'stock' => 18],
+        ], 'leather-jacket-woman-black-2');
+
+        // Product 14: Women's Elegant Black Leather Jacket (Style 3)
+        $product14 = Product::firstOrCreate(
+            ['name' => 'Women\'s Elegant Black Leather Jacket'],
+            [
+                'price' => 319.99,
+                'description' => 'An elegant black leather jacket with refined styling for women. Features sophisticated design elements and premium leather construction. Perfect for the woman who appreciates timeless elegance and quality craftsmanship.',
+                'gender' => 'female',
+                'category_id' => $jacketCategory->id,
+            ]
+        );
+
+        $product14->images()->delete();
+        $product14->images()->createMany([
+            ['url' => '/storage/images/leather-jacket-woman-black-3-1.jpeg', 'alt_text' => 'Women\'s Elegant Black Leather Jacket View 1', 'sort_order' => 0],
+            ['url' => '/storage/images/leather-jacket-woman-black-3-2.jpeg', 'alt_text' => 'Women\'s Elegant Black Leather Jacket View 2', 'sort_order' => 1],
+            ['url' => '/storage/images/leather-jacket-woman-black-3-3.jpeg', 'alt_text' => 'Women\'s Elegant Black Leather Jacket View 3', 'sort_order' => 2],
+        ]);
+
+        $this->createVariants($product14, 'Black', 'WEBLJ-BLK', [
+            ['size' => 'XS', 'stock' => 10],
+            ['size' => 'S', 'stock' => 20],
+            ['size' => 'M', 'stock' => 25],
+            ['size' => 'L', 'stock' => 15],
+        ], 'leather-jacket-woman-black-3');
+
+        // Product 15: Women's Premium Black Leather Jacket (Style 4)
+        $product15 = Product::firstOrCreate(
+            ['name' => 'Women\'s Premium Black Leather Jacket'],
+            [
+                'price' => 339.99,
+                'description' => 'A premium black leather jacket with luxurious details designed for women. Features exceptional craftsmanship and the finest leather quality. The ultimate statement piece for the discerning woman who demands the best.',
+                'gender' => 'female',
+                'category_id' => $jacketCategory->id,
+            ]
+        );
+
+        $product15->images()->delete();
+        $product15->images()->createMany([
+            ['url' => '/storage/images/leather-jacket-woman-black-4-1.jpeg', 'alt_text' => 'Women\'s Premium Black Leather Jacket View 1', 'sort_order' => 0],
+            ['url' => '/storage/images/leather-jacket-woman-black-4-2.jpeg', 'alt_text' => 'Women\'s Premium Black Leather Jacket View 2', 'sort_order' => 1],
+            ['url' => '/storage/images/leather-jacket-woman-black-4-3.jpeg', 'alt_text' => 'Women\'s Premium Black Leather Jacket View 3', 'sort_order' => 2],
+            ['url' => '/storage/images/leather-jacket-woman-black-4-4jpeg.jpeg', 'alt_text' => 'Women\'s Premium Black Leather Jacket View 4', 'sort_order' => 3],
+            ['url' => '/storage/images/leather-jacket-woman-black-4-5.jpeg', 'alt_text' => 'Women\'s Premium Black Leather Jacket View 5', 'sort_order' => 4],
+            ['url' => '/storage/images/leather-jacket-woman-black-4-6.jpeg', 'alt_text' => 'Women\'s Premium Black Leather Jacket View 6', 'sort_order' => 5],
+        ]);
+
+        $this->createVariants($product15, 'Black', 'WPBLJ-BLK', [
+            ['size' => 'XS', 'stock' => 8],
+            ['size' => 'S', 'stock' => 18],
+            ['size' => 'M', 'stock' => 22],
+            ['size' => 'L', 'stock' => 12],
+        ], 'leather-jacket-woman-black-4');
     }
 
     /**

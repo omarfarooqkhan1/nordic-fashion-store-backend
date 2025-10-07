@@ -42,6 +42,11 @@ class ProductController extends Controller
             $query->where('price', '<=', $request->max_price);
         }
 
+        // Filter by gender
+        if ($request->has('gender') && $request->gender) {
+            $query->where('gender', $request->gender);
+        }
+
         // Sorting
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
@@ -77,6 +82,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:products,name',
             'description' => 'nullable|string',
+            'gender' => 'required|in:male,female,unisex',
             'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
         ]);
@@ -91,6 +97,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:products,name,' . $product->id,
             'description' => 'nullable|string',
+            'gender' => 'required|in:male,female,unisex',
             'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
         ]);
@@ -391,17 +398,8 @@ class ProductController extends Controller
             if (!empty($rowData[$column]) && isset($imageFiles[$rowData[$column]])) {
                 $filePath = $imageFiles[$rowData[$column]];
                 
-                // Generate unique filename with product name and variant info
-                $variantInfo = '';
-                if (!empty($rowData['color'])) $variantInfo .= '_' . strtolower($rowData['color']);
-                if (!empty($rowData['size'])) $variantInfo .= '_' . strtolower($rowData['size']);
-                
-                $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', 
-                    strtolower($product->name) . $variantInfo . '_' . pathinfo($rowData[$column], PATHINFO_FILENAME)
-                );
-                
-                // Upload to local storage
-                $result = $localImageService->uploadImage($filePath, 'products', $filename);
+                // Upload to local storage (let service generate filename with proper extension)
+                $result = $localImageService->uploadImage($filePath, 'products');
                 
                 if ($result) {
                     $uploadedImageUrls[] = $result['secure_url'];
@@ -585,13 +583,8 @@ class ProductController extends Controller
             $imageFile = $request->file('image');
             $localImageService = app(\App\Services\LocalImageService::class);
             
-            // Generate filename
-            $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', 
-                strtolower($product->name) . '_' . time() . '_' . uniqid()
-            );
-            
-            // Upload to local storage
-            $result = $localImageService->uploadImage($imageFile, 'products', $filename);
+            // Upload to local storage (let service generate filename with proper extension)
+            $result = $localImageService->uploadImage($imageFile, 'products');
             
             if (!$result) {
                 throw new \Exception('Failed to upload image to local storage');

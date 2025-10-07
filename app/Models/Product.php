@@ -15,6 +15,7 @@ class Product extends Model
     protected $fillable = [
         'name',
         'description',
+        'gender',
         'price',
         'category_id',
     ];
@@ -41,7 +42,7 @@ class Product extends Model
     // Relationship to ProductReviews
     public function reviews()
     {
-        return $this->hasMany(ProductReview::class);
+        return $this->hasMany(\App\Models\ProductReview::class);
     }
 
     // Get average rating for the product
