@@ -15,8 +15,10 @@ class ProductVariant extends Model
         'sku',
         'color',
         'size',
-        'price_difference',
+        'price',
         'stock',
+        'video_url',
+        'video_path',
     ];
 
     public function product()
@@ -26,7 +28,7 @@ class ProductVariant extends Model
 
     public function getActualPriceAttribute(): float
     {
-        return $this->product->price + $this->price_difference;
+        return $this->price;
     }
 
     /**

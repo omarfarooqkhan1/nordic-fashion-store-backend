@@ -85,39 +85,11 @@ class CartController extends Controller
                 $item['variant'] = $item['product_variant'];
                 unset($item['product_variant']);
                 
-                // Calculate actual_price (base price + price difference)
-                $basePrice = floatval($item['variant']['product']['price']);
-                $priceDifference = floatval($item['variant']['price_difference']);
-                $item['variant']['actual_price'] = $basePrice + $priceDifference;
+                // Use the variant's actual_price directly
+                $item['variant']['actual_price'] = $item['variant']['actual_price'];
                 
                 // Add variant_id for frontend compatibility
                 $item['variant_id'] = $item['variant']['id'];
-
-                // Ensure image URLs are absolute for both variant and product images
-                $makeAbsolute = function ($url) {
-                    if (is_string($url) && str_starts_with($url, '/')) {
-                        return url($url);
-                    }
-                    return $url;
-                };
-
-                if (!empty($item['variant']['images'])) {
-                    foreach ($item['variant']['images'] as &$img) {
-                        if (isset($img['url'])) {
-                            $img['url'] = $makeAbsolute($img['url']);
-                        }
-                    }
-                    unset($img);
-                }
-
-                if (!empty($item['variant']['product']['images'])) {
-                    foreach ($item['variant']['product']['images'] as &$pimg) {
-                        if (isset($pimg['url'])) {
-                            $pimg['url'] = $makeAbsolute($pimg['url']);
-                        }
-                    }
-                    unset($pimg);
-                }
             }
 
             $response = ['cart' => $transformedCart];
@@ -247,10 +219,8 @@ class CartController extends Controller
                 $item['variant'] = $item['product_variant'];
                 unset($item['product_variant']);
                 
-                // Calculate actual_price (base price + price difference)
-                $basePrice = floatval($item['variant']['product']['price']);
-                $priceDifference = floatval($item['variant']['price_difference']);
-                $item['variant']['actual_price'] = $basePrice + $priceDifference;
+                // Use the variant's actual_price directly
+                $item['variant']['actual_price'] = $item['variant']['actual_price'];
                 
                 // Add variant_id for frontend compatibility
                 $item['variant_id'] = $item['variant']['id'];

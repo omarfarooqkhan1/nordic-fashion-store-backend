@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `product_variants` (
   `sku` VARCHAR(255) NOT NULL,
   `color` VARCHAR(255),
   `size` VARCHAR(255),
-  `price_difference` DECIMAL(10,2) NOT NULL DEFAULT 0,
+  `price` DECIMAL(10,2) NOT NULL,
   `stock` INT NOT NULL DEFAULT 0,
   `created_at` TIMESTAMP NULL,
   `updated_at` TIMESTAMP NULL,

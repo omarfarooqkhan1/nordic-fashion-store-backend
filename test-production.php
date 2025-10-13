@@ -5,7 +5,7 @@
  */
 
 // Test URLs
-$baseUrl = 'https://yourdomain.com'; // Replace with your actual domain
+$baseUrl = '/'; // Replace with your actual domain
 $testUrls = [
     'Health Check' => $baseUrl . '/health',
     'CSRF Cookie' => $baseUrl . '/sanctum/csrf-cookie',

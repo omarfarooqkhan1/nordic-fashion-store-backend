@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             ProductSeeder::class,
             BlogSeeder::class,      // Add blog seeder
+            \Database\Seeders\FaqSeeder::class,
             // OrderSeeder::class, // Uncomment if you want to seed orders too
         ]);
     }

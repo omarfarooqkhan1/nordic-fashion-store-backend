@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('name')->unique(); // <--- THIS IS THE CRUCIAL LINE
             $table->text('description')->nullable();
             $table->enum('gender', ['male', 'female', 'unisex'])->default('unisex');
-            $table->decimal('price', 10, 2); // Base price for the product
+            $table->decimal('discount', 5, 2)->default(0); // Discount percentage (0-100.00)
 
             $table->timestamps();
         });

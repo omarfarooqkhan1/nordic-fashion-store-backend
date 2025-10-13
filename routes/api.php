@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\CloudinaryController;
-// use App\Http\Controllers\Api\Admin\AdminUserController; // Controller not created yet
+use App\Http\Controllers\Api\Admin\AdminUserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -116,99 +116,10 @@ Route::prefix('orders')->group(function () {
 | Public Routes - Read-only access for everyone
 |--------------------------------------------------------------------------
 */
-// Debug route to test database connectivity
-Route::get('debug/products', function() {
-    try {
-        $count = \App\Models\Product::count();
-        return response()->json([
-            'status' => 'ok',
-            'products_count' => $count,
-            'database' => 'connected'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'error' => $e->getMessage()
-        ], 500);
-    }
-});
 
-// Simple test endpoint for XHR debugging
-Route::get('test', function() {
-    return response()->json([
-        'message' => 'API is working',
-        'timestamp' => now(),
-        'cors' => 'enabled'
-    ]);
-});
+// Public product routes with proper controller handling
+Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 
-// Simplified products endpoint for debugging
-Route::get('products', function() {
-    try {
-        $products = \App\Models\Product::with(['category', 'images'])->get();
-        return response()->json([
-            'data' => $products->map(function($product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'description' => $product->description,
-                    'price' => $product->price,
-                    'gender' => $product->gender,
-                    'category' => $product->category ? [
-                        'id' => $product->category->id,
-                        'name' => $product->category->name
-                    ] : null,
-                    'images' => $product->images->map(function($image) {
-                        return [
-                            'id' => $image->id,
-                            'url' => $image->url,
-                            'alt_text' => $image->alt_text
-                        ];
-                    })
-                ];
-            })
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Failed to load products',
-            'message' => $e->getMessage()
-        ], 500);
-    }
-});
-
-Route::get('products/{id}', function($id) {
-    try {
-        $product = \App\Models\Product::with(['category', 'images'])->find($id);
-        if (!$product) {
-            return response()->json(['error' => 'Product not found'], 404);
-        }
-        return response()->json([
-            'data' => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'description' => $product->description,
-                'price' => $product->price,
-                'gender' => $product->gender,
-                'category' => $product->category ? [
-                    'id' => $product->category->id,
-                    'name' => $product->category->name
-                ] : null,
-                'images' => $product->images->map(function($image) {
-                    return [
-                        'id' => $image->id,
-                        'url' => $image->url,
-                        'alt_text' => $image->alt_text
-                    ];
-                })
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Failed to load product',
-            'message' => $e->getMessage()
-        ], 500);
-    }
-});
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 
 // Contact form submission
@@ -222,14 +133,18 @@ Route::post('blogs/{slug}/like', [\App\Http\Controllers\Api\BlogController::clas
 Route::post('blogs/{slug}/view', [\App\Http\Controllers\Api\BlogController::class, 'view']);
 Route::get('blog-tags', [\App\Http\Controllers\Api\BlogController::class, 'tags']);
 
-
-
 /*
 |--------------------------------------------------------------------------
 | Admin Protected Routes - Password-authenticated admins only
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+
+    // FAQ admin endpoints
+    Route::get('faqs', [\App\Http\Controllers\Api\FaqController::class, 'index']);
+    Route::post('faqs', [\App\Http\Controllers\Api\FaqController::class, 'store']);
+    Route::put('faqs/{faq}', [\App\Http\Controllers\Api\FaqController::class, 'update']);
+    Route::delete('faqs/{faq}', [\App\Http\Controllers\Api\FaqController::class, 'destroy']);
     // Product management (admin only)
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
@@ -248,6 +163,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage']);
     Route::put('products/{product}/images/reorder', [ProductController::class, 'reorderImages']);
     
+    // Product statistics
+    Route::get('products/stats', [ProductController::class, 'getProductStats']);
+    Route::get('products/low-stock', [ProductController::class, 'getLowStockProducts']);
+    Route::get('products/out-of-stock', [ProductController::class, 'getOutOfStockProducts']);
+    
     // Bulk upload routes
     Route::post('products/bulk-upload', [ProductController::class, 'bulkUpload']);
     Route::get('products/bulk-upload/template', [ProductController::class, 'getBulkUploadTemplate']);
@@ -264,23 +184,45 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::put('orders/{order}', [OrderController::class, 'adminUpdate']);
     });
     
-    // User management routes (commented out - controller needs to be created)
-    // Route::get('admin/users', [AdminUserController::class, 'index']);
-    // Route::post('admin/users', [AdminUserController::class, 'store']);
-    // Route::put('admin/users/{user}/role', [AdminUserController::class, 'updateRole']);
-    // Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
+    // User management routes
+    Route::get('admin/users', [AdminUserController::class, 'index']);
+    Route::get('admin/users/{user}', [AdminUserController::class, 'show']);
+    Route::post('admin/users', [AdminUserController::class, 'store']);
+    Route::put('admin/users/{user}', [AdminUserController::class, 'update']);
+    Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
+    Route::patch('admin/users/{user}/status', [AdminUserController::class, 'updateStatus']);
+    Route::post('admin/users/{user}/reset-password', [AdminUserController::class, 'resetPassword']);
+    
+    // User statistics and bulk operations
+    Route::get('admin/users/stats', [AdminUserController::class, 'getUserStats']);
+    Route::post('admin/users/bulk-status', [AdminUserController::class, 'bulkUpdateStatus']);
+    Route::post('admin/users/bulk-delete', [AdminUserController::class, 'bulkDelete']);
     
     // Admin dashboard stats
-    Route::get('admin/stats', function () {
-        return response()->json([
-            'total_products' => \App\Models\Product::count(),
-            'total_categories' => \App\Models\Category::count(),
-            'total_variants' => \App\Models\ProductVariant::count(),
-            'total_customers' => \App\Models\User::customers()->count(),
-            'low_stock_variants' => \App\Models\ProductVariant::where('stock', '<', 10)->count(),
-        ]);
-    });
+    Route::get('admin/stats', [\App\Http\Controllers\Api\AdminDashboardController::class, 'getStats']);
+    Route::get('admin/recent-registrations', [\App\Http\Controllers\Api\AdminDashboardController::class, 'getRecentRegistrations']);
+    Route::get('admin/recent-orders', [\App\Http\Controllers\Api\AdminDashboardController::class, 'getRecentOrders']);
+    Route::post('admin/users/{user}/mark-notified', [\App\Http\Controllers\Api\AdminDashboardController::class, 'markRegistrationAsNotified']);
+    
+    // Admin blog management
+    Route::apiResource('admin/blogs', \App\Http\Controllers\Api\Admin\AdminBlogController::class);
+    Route::get('admin/blog-stats', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'stats']);
+    Route::post('admin/blogs/bulk-action', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'bulkAction']);
+    Route::get('admin/blogs/analytics', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'analytics']);
+    Route::get('admin/blogs/export', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'export']);
+    
+    // Admin contact form management
+    Route::get('admin/contact-forms', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'index']);
+    Route::put('admin/contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'update']);
+    Route::delete('admin/contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'destroy']);
+    Route::post('admin/contact-forms/{id}/reply', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'reply']);
+    Route::get('admin/contact-stats', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'stats']);
+    Route::post('admin/contact-forms/bulk-update', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'bulkUpdate']);
+    Route::post('admin/contact-forms/bulk-delete', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'bulkDelete']);
 });
+
+// Variant video upload
+Route::post('products/{product}/variant-video', [\App\Http\Controllers\Api\VariantVideoController::class, 'upload']);
 
 /*
 |--------------------------------------------------------------------------
@@ -328,18 +270,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('reviews/pending', [\App\Http\Controllers\Api\ProductReviewController::class, 'pendingReviews']);
         Route::post('reviews/{review}/approve', [\App\Http\Controllers\Api\ProductReviewController::class, 'approve']);
         Route::post('reviews/{review}/reject', [\App\Http\Controllers\Api\ProductReviewController::class, 'reject']);
-        
-        // Admin contact form management
-        Route::get('contact-forms', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'index']);
-        Route::put('contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'update']);
-        Route::delete('contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'destroy']);
-        Route::post('contact-forms/{id}/reply', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'reply']);
-        
-        // Admin blog management
-        Route::apiResource('blogs', \App\Http\Controllers\Api\Admin\AdminBlogController::class);
-        Route::get('blog-stats', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'stats']);
     });
 });
+
+// FAQ public endpoints
+Route::get('faqs', [\App\Http\Controllers\Api\FaqController::class, 'index']);
 
 /*
 |--------------------------------------------------------------------------

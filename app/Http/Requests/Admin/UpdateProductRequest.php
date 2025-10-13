@@ -25,7 +25,7 @@ class UpdateProductRequest extends FormRequest
             'variants.*.sku' => 'required_with:variants|string|unique:product_variants,sku,' . ($this->input('variants.*.id') ?? 'NULL'),
             'variants.*.color' => 'nullable|string|max:50',
             'variants.*.size' => 'nullable|string|max:50',
-            'variants.*.price_difference' => 'nullable|numeric',
+            'variants.*.price' => 'nullable|numeric',
             'variants.*.stock' => 'required_with:variants|integer|min:0',
             'images' => 'nullable|array',
             'images.*.url' => 'nullable|url',

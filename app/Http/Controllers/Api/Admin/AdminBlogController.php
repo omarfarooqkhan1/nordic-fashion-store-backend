@@ -147,6 +147,13 @@ class AdminBlogController extends Controller
     public function store(Request $request)
     {
         try {
+            // Log incoming request for debugging
+            Log::info('Blog store request received', [
+                'has_featured_image_file' => $request->hasFile('featured_image_file'),
+                'featured_image_url' => $request->get('featured_image'),
+                'has_images_files' => $request->hasFile('images'),
+                'all_request_data' => $request->all()
+            ]);
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
                 'excerpt' => 'nullable|string|max:1000',
@@ -323,9 +330,23 @@ class AdminBlogController extends Controller
             if ($request->hasFile('featured_image_file')) {
                 $localImageService = app(LocalImageService::class);
                 $filename = Str::slug($data['title'] ?? $blog->title) . '_featured_' . time() . '_' . uniqid();
-                
+
+                // Delete old featured image if it exists and is a local file
+                if (!empty($blog->featured_image) && strpos($blog->featured_image, config('app.url')) === 0) {
+                    // Extract local path from URL
+                    $baseUrl = config('app.url');
+                    $localPath = str_replace($baseUrl . '/storage/', '', $blog->featured_image);
+                    if ($localPath) {
+                        $localImageService->deleteImage($localPath);
+                        Log::info('Old featured image deleted', [
+                            'blog_id' => $blog->id,
+                            'local_path' => $localPath
+                        ]);
+                    }
+                }
+
                 $result = $localImageService->uploadImage($request->file('featured_image_file'), 'blogs', $filename);
-                
+
                 if ($result) {
                     $data['featured_image'] = $result['secure_url'];
                     Log::info('Blog featured image uploaded successfully', [
@@ -342,6 +363,13 @@ class AdminBlogController extends Controller
                     // If file upload fails, don't set featured_image
                     unset($data['featured_image']);
                 }
+            } elseif (array_key_exists('featured_image', $data) && $data['featured_image'] === '') {
+                // Remove featured image if empty string sent from frontend
+                $data['featured_image'] = null;
+                Log::info('Removing featured image for blog', [
+                    'blog_id' => $blog->id,
+                    'blog_title' => $data['title'] ?? $blog->title
+                ]);
             } elseif (isset($data['featured_image']) && !empty($data['featured_image'])) {
                 // Only use URL if no file upload and URL is provided
                 Log::info('Using featured image URL', [
@@ -675,5 +703,113 @@ class AdminBlogController extends Controller
         }
         
         Log::info('Blog cache cleared');
+    }
+    
+    /**
+     * Get blog post analytics
+     */
+    public function analytics(Request $request)
+    {
+        try {
+            $days = $request->get('days', 30);
+            $startDate = now()->subDays($days);
+            
+            $analytics = [
+                'total_views' => Blog::sum('views_count'),
+                'total_likes' => Blog::sum('likes_count'),
+                'period_views' => Blog::where('created_at', '>=', $startDate)->sum('views_count'),
+                'period_likes' => Blog::where('created_at', '>=', $startDate)->sum('likes_count'),
+                'top_blogs_by_views' => Blog::orderBy('views_count', 'desc')->limit(10)->get([
+                    'id', 'title', 'views_count', 'likes_count'
+                ]),
+                'top_blogs_by_likes' => Blog::orderBy('likes_count', 'desc')->limit(10)->get([
+                    'id', 'title', 'views_count', 'likes_count'
+                ]),
+                'daily_stats' => Blog::selectRaw('DATE(created_at) as date, SUM(views_count) as views, SUM(likes_count) as likes')
+                    ->where('created_at', '>=', $startDate)
+                    ->groupBy('date')
+                    ->orderBy('date')
+                    ->get(),
+            ];
+
+            return response()->json($analytics);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch blog analytics', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to fetch blog analytics',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Export blog posts
+     */
+    public function export(Request $request)
+    {
+        try {
+            $format = $request->get('format', 'json');
+            $status = $request->get('status');
+            
+            $query = Blog::query();
+            
+            if ($status) {
+                $query->where('status', $status);
+            }
+            
+            $blogs = $query->get();
+            
+            if ($format === 'csv') {
+                $headers = [
+                    'ID', 'Title', 'Slug', 'Excerpt', 'Content', 'Featured Image', 
+                    'Status', 'Author Name', 'Meta Title', 'Meta Description', 
+                    'Views Count', 'Likes Count', 'Created At', 'Updated At'
+                ];
+                
+                $csvData = [implode(',', $headers)];
+                
+                foreach ($blogs as $blog) {
+                    $csvData[] = implode(',', [
+                        $blog->id,
+                        '"' . str_replace('"', '""', $blog->title) . '"',
+                        $blog->slug,
+                        '"' . str_replace('"', '""', $blog->excerpt ?? '') . '"',
+                        '"' . str_replace('"', '""', $blog->content) . '"',
+                        $blog->featured_image ?? '',
+                        $blog->status,
+                        '"' . str_replace('"', '""', $blog->author_name) . '"',
+                        '"' . str_replace('"', '""', $blog->meta_title ?? '') . '"',
+                        '"' . str_replace('"', '""', $blog->meta_description ?? '') . '"',
+                        $blog->views_count,
+                        $blog->likes_count,
+                        $blog->created_at,
+                        $blog->updated_at,
+                    ]);
+                }
+                
+                $csvContent = implode("\n", $csvData);
+                
+                return response($csvContent)
+                    ->header('Content-Type', 'text/csv')
+                    ->header('Content-Disposition', 'attachment; filename="blog_posts.csv"');
+            } else {
+                // Default to JSON
+                return response()->json($blogs);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to export blog posts', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to export blog posts',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
     }
 }

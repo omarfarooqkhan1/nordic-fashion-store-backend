@@ -23,6 +23,8 @@ return new class extends Migration
             $table->string('password_reset_code', 10)->nullable();
             $table->string('auth0_user_id')->unique()->nullable();
             $table->string('role')->default('customer');
+            $table->timestamp('registration_date')->nullable();
+            $table->boolean('is_admin_notified')->default(false);
             $table->timestamps();
         });
 

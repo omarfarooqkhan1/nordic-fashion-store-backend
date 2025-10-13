@@ -22,7 +22,7 @@ class StoreProductRequest extends FormRequest
             'variants.*.sku' => 'required_with:variants|string|unique:product_variants,sku',
             'variants.*.color' => 'nullable|string|max:50',
             'variants.*.size' => 'nullable|string|max:50',
-            'variants.*.price_difference' => 'nullable|numeric',
+            'variants.*.price' => 'nullable|numeric',
             'variants.*.stock' => 'required_with:variants|integer|min:0',
             'images' => 'nullable|array',
             'images.*.url' => 'nullable|url',
@@ -36,7 +36,6 @@ class StoreProductRequest extends FormRequest
         return [
             'name.unique' => 'A product with this name already exists.',
             'category_id.exists' => 'The selected category does not exist.',
-            'variants.*.sku.unique' => 'SKU must be unique across all product variants.',
         ];
     }
 }

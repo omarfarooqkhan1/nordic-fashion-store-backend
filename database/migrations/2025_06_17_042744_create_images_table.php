@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('url'); // Stores the URL to the image file (e.g., from a CDN)
             $table->string('alt_text')->nullable(); // Optional: For accessibility (alt attribute)
             $table->unsignedInteger('sort_order')->default(0); // For defining display order of images
+            $table->enum('image_type', ['main', 'detailed', 'styling', 'size_guide'])->default('main'); // Image category
+            $table->boolean('is_mobile')->default(false);
 
             // Polymorphic columns:
             // This creates two columns: 'imageable_id' (integer) and 'imageable_type' (string).

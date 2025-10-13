@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductCollection;
+use App\Http\Resources\ProductVariantResource;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\ProductVariant;
@@ -13,12 +14,13 @@ use App\Services\LocalImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'variants.images', 'images']);
+        $query = Product::with(['category', 'variants.images', 'allImages']);
 
         // Search functionality
         if ($request->has('search') && $request->search) {
@@ -73,7 +75,17 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        $product->loadMissing(['category', 'variants.images', 'images']);
+        // Support include parameter for loading specific relationships
+        $includes = request()->input('include');
+        
+        if ($includes) {
+            $includeArray = is_array($includes) ? $includes : explode(',', $includes);
+            $product->loadMissing($includeArray);
+        } else {
+            // Default relationships to load
+            $product->loadMissing(['category', 'variants.images', 'allImages']);
+        }
+        
         return new ProductResource($product);
     }
 
@@ -82,12 +94,29 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:products,name',
             'description' => 'nullable|string',
+            'size_guide_image' => 'nullable|string',
             'gender' => 'required|in:male,female,unisex',
-            'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
+            'variants' => 'nullable|array',
+            'variants.*.color' => 'required_with:variants|string',
+            'variants.*.size' => 'required_with:variants|string',
+            'variants.*.actual_price' => 'required_with:variants|numeric',
+            'variants.*.stock' => 'required_with:variants|integer',
+            // add other variant fields as needed
         ]);
 
+        // Create product first
         $product = Product::create($validated);
+
+        // If variants are present, create them
+        if (!empty($validated['variants'])) {
+            foreach ($validated['variants'] as $variantData) {
+                $product->variants()->create($variantData);
+            }
+        }
+
+        // Reload with relationships for response
+        $product->load(['category', 'variants.images', 'allImages']);
 
         return new ProductResource($product);
     }
@@ -97,8 +126,8 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:products,name,' . $product->id,
             'description' => 'nullable|string',
+            'size_guide_image' => 'nullable|string',
             'gender' => 'required|in:male,female,unisex',
-            'price' => 'required|numeric|min:0',
             'category_id' => 'required|exists:categories,id',
         ]);
 
@@ -228,7 +257,7 @@ class ProductController extends Controller
         $requiredHeaders = ['name', 'description', 'price', 'category_name'];
         $imageHeaders = ['image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5'];
         $urlHeaders = ['image_url_1', 'image_url_2', 'image_url_3', 'image_url_4', 'image_url_5'];
-        $optionalHeaders = ['sku', 'color', 'size', 'price_difference', 'stock'];
+        $optionalHeaders = ['sku', 'color', 'size', 'price', 'stock'];
         $allValidHeaders = array_merge($requiredHeaders, $optionalHeaders, $imageHeaders, $urlHeaders);
         
         $missingHeaders = array_diff($requiredHeaders, $header);
@@ -313,8 +342,9 @@ class ProductController extends Controller
                         'sku' => $rowData['sku'] ?? ($product->name . '-' . uniqid()),
                         'color' => $rowData['color'] ?? null,
                         'size' => $rowData['size'] ?? null,
-                        'price_difference' => isset($rowData['price_difference']) ? (float) $rowData['price_difference'] : 0.00,
+                        'actual_price' => isset($rowData['price']) ? (float) $rowData['price'] : 0.00,
                         'stock' => isset($rowData['stock']) ? (int) $rowData['stock'] : 0,
+                        'video_url' => $rowData['video_url'] ?? null,
                     ];
 
                     // Check if variant already exists
@@ -489,7 +519,7 @@ class ProductController extends Controller
     public function getBulkUploadTemplate()
     {
         $headers = [
-            'name', 'description', 'price', 'category_name', 'sku', 'color', 'size', 'price_difference', 'stock', 
+            'name', 'description', 'price', 'category_name', 'sku', 'color', 'size', 'price', 'stock', 
             'image_file_1', 'image_file_2', 'image_file_3', 'image_file_4', 'image_file_5',
             'image_url_1', 'image_url_2', 'image_url_3', 'image_url_4', 'image_url_5'
         ];
@@ -574,51 +604,96 @@ class ProductController extends Controller
      */
     public function uploadImage(Request $request, Product $product)
     {
-        $request->validate([
-            'image' => 'required|image|max:10240', // 10MB max
-            'alt_text' => 'nullable|string|max:255',
-        ]);
-
-        try {
-            $imageFile = $request->file('image');
-            $localImageService = app(\App\Services\LocalImageService::class);
-            
-            // Upload to local storage (let service generate filename with proper extension)
-            $result = $localImageService->uploadImage($imageFile, 'products');
-            
-            if (!$result) {
-                throw new \Exception('Failed to upload image to local storage');
+        // Accept both single and multiple image upload
+        $isMultiple = is_array($request->file('image'));
+        $imageFiles = $isMultiple ? $request->file('image') : [$request->file('image')];
+        $responses = [];
+        $localImageService = app(\App\Services\LocalImageService::class);
+        foreach ($imageFiles as $imageFile) {
+            // Validate each image
+            $validator = \Validator::make([
+                'image' => $imageFile
+            ], [
+                'image' => 'required|image|max:10240',
+            ]);
+            if ($validator->fails()) {
+                \Log::error('[ProductController@uploadImage] Validation failed (multi)', [
+                    'product_id' => $product->id,
+                    'fields' => $request->all(),
+                    'errors' => $validator->errors(),
+                ]);
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors(),
+                ], 422);
             }
-
-            // Get the next sort order
-            $maxSortOrder = $product->images()->max('sort_order') ?? 0;
-            
-            // Create image record
-            $image = $product->images()->create([
-                'url' => $result['secure_url'],
-                'alt_text' => $request->alt_text ?? $product->name . ' Image',
-                'sort_order' => $maxSortOrder + 1,
-            ]);
-
-            Log::info('Image uploaded successfully', [
-                'product_id' => $product->id,
-                'image_id' => $image->id,
-                'local_path' => $result['public_id'],
-                'compression_ratio' => $result['compression_ratio'] . '%'
-            ]);
-
-            return response()->json($image, 201);
-
-        } catch (\Exception $e) {
-            Log::error('Image upload failed', [
-                'product_id' => $product->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to upload image: ' . $e->getMessage()
-            ], 500);
+            try {
+                // Upload to local storage
+                $result = $localImageService->uploadImage($imageFile, 'products');
+                if (!$result) {
+                    throw new \Exception('Failed to upload image to local storage');
+                }
+                $imageType = $request->input('image_type', 'main');
+                $isMobile = $request->input('is_mobile', false);
+                // If image_type is 'mobile', set to 'detailed' and is_mobile true
+                if ($imageType === 'mobile') {
+                    $imageType = 'detailed';
+                    $isMobile = true;
+                }
+                $imageable = $product;
+                if ($request->filled('variant_id')) {
+                    $variant = ProductVariant::find($request->input('variant_id'));
+                    if ($variant && $variant->product_id === $product->id) {
+                        $imageable = $variant;
+                    }
+                }
+                // If this is a size guide image, only allow one (backward compatible)
+                if ($imageType === 'size_guide' && $imageable instanceof Product) {
+                    $existingSizeGuideImages = $imageable->images()->where('image_type', 'size_guide')->get();
+                    foreach ($existingSizeGuideImages as $existingImage) {
+                        $localPath = $this->extractLocalPathFromUrl($existingImage->url);
+                        if ($localPath) {
+                            $localImageService->deleteImage($localPath);
+                        }
+                        $existingImage->delete();
+                    }
+                }
+                $maxSortOrder = $imageable->images()->where('image_type', $imageType)->max('sort_order') ?? 0;
+                $image = $imageable->images()->create([
+                    'url' => $result['secure_url'],
+                    'alt_text' => $request->alt_text ?? ($imageable instanceof Product ? $product->name : $imageable->color . ' ' . $imageable->size) . ' Image',
+                    'sort_order' => $maxSortOrder + 1,
+                    'image_type' => $imageType,
+                    'is_mobile' => $isMobile,
+                ]);
+                Log::info('Image uploaded successfully', [
+                    'product_id' => $product->id,
+                    'variant_id' => $request->filled('variant_id') ? $request->input('variant_id') : null,
+                    'image_id' => $image->id,
+                    'image_type' => $imageType,
+                    'is_mobile' => $isMobile,
+                    'imageable_type' => get_class($imageable),
+                    'imageable_id' => $imageable->id,
+                    'local_path' => $result['public_id'],
+                    'compression_ratio' => $result['compression_ratio'] . '%'
+                ]);
+                $responses[] = $image;
+            } catch (\Exception $e) {
+                Log::error('Image upload failed', [
+                    'product_id' => $product->id,
+                    'variant_id' => $request->filled('variant_id') ? $request->input('variant_id') : null,
+                    'error' => $e->getMessage()
+                ]);
+                return response()->json([
+                    'message' => 'Failed to upload image: ' . $e->getMessage()
+                ], 500);
+            }
         }
+        // If only one image, return as object for backward compatibility
+        if (count($responses) === 1) {
+            return response()->json($responses[0], 201);
+        }
+        return response()->json($responses, 201);
     }
 
     /**
@@ -708,16 +783,46 @@ class ProductController extends Controller
     public function getCategorizedImages(Product $product)
     {
         try {
-            // Get product-level images
-            $productImages = $product->images()->orderBy('sort_order')->get()->map(function($image) {
+            // Get main product images
+            $mainImages = $product->images()->orderBy('sort_order')->get()->map(function($image) {
                 return [
                     'id' => $image->id,
                     'url' => $image->url,
                     'alt_text' => $image->alt_text,
                     'sort_order' => $image->sort_order,
+                    'image_type' => $image->image_type ?? 'main',
                     'type' => 'product',
                     'belongs_to' => 'Product',
-                    'category' => 'General Product Image'
+                    'category' => 'Main Product Image'
+                ];
+            });
+            
+            // Get detailed images
+            $detailedImages = $product->detailedImages()->orderBy('sort_order')->get()->map(function($image) {
+                return [
+                    'id' => $image->id,
+                    'url' => $image->url,
+                    'alt_text' => $image->alt_text,
+                    'sort_order' => $image->sort_order,
+                    'image_type' => $image->image_type ?? 'detailed',
+                    'is_mobile' => $image->is_mobile ?? false,
+                    'type' => 'product',
+                    'belongs_to' => 'Product',
+                    'category' => 'Detailed Product Image'
+                ];
+            });
+            
+            // Get styling images
+            $stylingImages = $product->stylingImages()->orderBy('sort_order')->get()->map(function($image) {
+                return [
+                    'id' => $image->id,
+                    'url' => $image->url,
+                    'alt_text' => $image->alt_text,
+                    'sort_order' => $image->sort_order,
+                    'image_type' => $image->image_type ?? 'styling',
+                    'type' => 'product',
+                    'belongs_to' => 'Product',
+                    'category' => 'Styling Inspiration Image'
                 ];
             });
 
@@ -731,6 +836,7 @@ class ProductController extends Controller
                         'url' => $image->url,
                         'alt_text' => $image->alt_text,
                         'sort_order' => $image->sort_order,
+                        'image_type' => $image->image_type ?? 'main',
                         'type' => 'variant',
                         'belongs_to' => 'ProductVariant',
                         'variant_id' => $variant->id,
@@ -745,12 +851,18 @@ class ProductController extends Controller
                 }
             }
 
+            $totalImages = $mainImages->count() + $detailedImages->count() + $stylingImages->count() + $variantImages->count();
+
             return response()->json([
-                'product_images' => $productImages,
+                'main_images' => $mainImages,
+                'detailed_images' => $detailedImages,
+                'styling_images' => $stylingImages,
                 'variant_images' => $variantImages,
-                'total_images' => $productImages->count() + $variantImages->count(),
+                'total_images' => $totalImages,
                 'summary' => [
-                    'product_image_count' => $productImages->count(),
+                    'main_image_count' => $mainImages->count(),
+                    'detailed_image_count' => $detailedImages->count(),
+                    'styling_image_count' => $stylingImages->count(),
                     'variant_image_count' => $variantImages->count(),
                     'variants_with_images' => $product->variants()->whereHas('images')->count()
                 ]
@@ -861,45 +973,94 @@ class ProductController extends Controller
     }
 
     /**
-     * Create a new variant for a product
+     * Store a newly created variant in storage.
      */
     public function storeVariant(Request $request, Product $product)
     {
         $validated = $request->validate([
             'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
-            'sku' => 'nullable|string|max:100|unique:product_variants,sku',
+            'sku' => 'nullable|string|max:100|unique:product_variants',
             'actual_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
+            'temp_image_ids' => 'nullable|array',
+            'temp_image_ids.*' => 'integer|exists:images,id',
         ]);
 
-        // Generate SKU if not provided or empty
+        // Generate SKU if not provided
         if (empty($validated['sku'])) {
-            $validated['sku'] = $product->name . '-' . $validated['size'] . '-' . $validated['color'];
-            $validated['sku'] = str_replace(' ', '-', strtolower($validated['sku']));
+            $validated['sku'] = $this->generateSKU($product, $validated['size'], $validated['color']);
         }
 
-        $validated['product_id'] = $product->id;
-
-        // Check if variant with same size and color already exists
-        $existingVariant = ProductVariant::where([
-            'product_id' => $product->id,
-            'size' => $validated['size'],
-            'color' => $validated['color']
-        ])->first();
-
-        if ($existingVariant) {
-            return response()->json([
-                'message' => 'A variant with this size and color already exists for this product.'
-            ], 422);
+        // Map actual_price to price for DB compatibility
+        if (isset($validated['actual_price'])) {
+            $validated['price'] = $validated['actual_price'];
         }
+        $variant = $product->variants()->create($validated);
 
-        $variant = ProductVariant::create($validated);
+        // Handle image reassignment for new variants
+        if ($request->has('temp_image_ids')) {
+            $this->reassignTempImages($variant, $request->input('temp_image_ids'));
+        }
 
         return response()->json([
             'message' => 'Variant created successfully',
-            'variant' => $variant
+            'variant' => new ProductVariantResource($variant)
         ], 201);
+    }
+
+    /**
+     * Generate a SKU for a product variant
+     */
+    private function generateSKU(Product $product, string $size, string $color): string
+    {
+        // Create a base SKU using the product name and variant attributes
+        $base = Str::upper(Str::limit(Str::slug($product->name, ''), 10, '')); // Limit product name to 10 chars
+        $sizeCode = Str::upper(Str::limit(Str::slug($size, ''), 3, '')); // Limit size to 3 chars
+        $colorCode = Str::upper(Str::limit(Str::slug($color, ''), 3, '')); // Limit color to 3 chars
+        
+        // Generate a unique SKU by appending a random number if needed
+        $sku = "{$base}-{$sizeCode}-{$colorCode}";
+        
+        // Ensure uniqueness
+        $counter = 1;
+        $originalSku = $sku;
+        while (ProductVariant::where('sku', $sku)->exists()) {
+            $sku = "{$originalSku}-" . str_pad((string)$counter, 2, '0', STR_PAD_LEFT);
+            $counter++;
+        }
+        
+        return $sku;
+    }
+
+    /**
+     * Reassign temporary images to a newly created variant
+     */
+    private function reassignTempImages(ProductVariant $variant, array $tempImageIds)
+    {
+        try {
+            // Find images that were uploaded temporarily and reassign them to the variant
+            $images = Image::whereIn('id', $tempImageIds)->get();
+            
+            foreach ($images as $image) {
+                // Update the imageable relationship to point to the variant
+                $image->imageable_id = $variant->id;
+                $image->imageable_type = ProductVariant::class;
+                $image->save();
+                
+                Log::info('Image reassigned to variant', [
+                    'image_id' => $image->id,
+                    'variant_id' => $variant->id,
+                    'product_id' => $variant->product_id
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to reassign images to variant', [
+                'variant_id' => $variant->id,
+                'temp_image_ids' => $tempImageIds,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**
@@ -918,6 +1079,8 @@ class ProductController extends Controller
             'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
             'actual_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
+            'temp_image_ids' => 'nullable|array',
+            'temp_image_ids.*' => 'integer|exists:images,id',
         ]);
 
         // Check if variant with same size and color already exists (excluding current variant)
@@ -933,11 +1096,18 @@ class ProductController extends Controller
             ], 422);
         }
 
+        // Map actual_price to price for DB compatibility
+        if (isset($validated['actual_price'])) {
+            $validated['price'] = $validated['actual_price'];
+        }
         $variant->update($validated);
+
+        // Load the images relationship for the response
+        $variant->load('images');
 
         return response()->json([
             'message' => 'Variant updated successfully',
-            'variant' => $variant
+            'variant' => new ProductVariantResource($variant)
         ]);
     }
 
@@ -964,5 +1134,85 @@ class ProductController extends Controller
         $variant->delete();
 
         return response()->json(['message' => 'Variant deleted successfully']);
+    }
+    
+    /**
+     * Get product statistics for admin dashboard
+     */
+    public function getProductStats()
+    {
+        try {
+            $stats = [
+                'total_products' => Product::count(),
+                'total_variants' => ProductVariant::count(),
+                'products_by_category' => Category::withCount('products')->get(),
+                'low_stock_products' => Product::whereHas('variants', function ($query) {
+                    $query->where('stock', '<', 10);
+                })->count(),
+                'out_of_stock_products' => Product::whereHas('variants', function ($query) {
+                    $query->where('stock', 0);
+                })->count(),
+            ];
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Failed to get product statistics', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to get product statistics'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get products with low stock for admin dashboard
+     */
+    public function getLowStockProducts(Request $request)
+    {
+        try {
+            $threshold = $request->get('threshold', 10);
+            
+            $products = Product::whereHas('variants', function ($query) use ($threshold) {
+                $query->where('stock', '<', $threshold)->where('stock', '>', 0);
+            })->with(['variants' => function ($query) use ($threshold) {
+                $query->where('stock', '<', $threshold)->where('stock', '>', 0);
+            }])->get();
+
+            return response()->json($products);
+        } catch (\Exception $e) {
+            Log::error('Failed to get low stock products', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to get low stock products'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Get out of stock products for admin dashboard
+     */
+    public function getOutOfStockProducts(Request $request)
+    {
+        try {
+            $products = Product::whereHas('variants', function ($query) {
+                $query->where('stock', 0);
+            })->with(['variants' => function ($query) {
+                $query->where('stock', 0);
+            }])->get();
+
+            return response()->json($products);
+        } catch (\Exception $e) {
+            Log::error('Failed to get out of stock products', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to get out of stock products'
+            ], 500);
+        }
     }
 }

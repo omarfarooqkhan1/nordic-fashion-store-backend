@@ -17,8 +17,9 @@ return new class extends Migration
             $table->string('sku')->unique(); // Stock Keeping Unit
             $table->string('color')->nullable();
             $table->string('size')->nullable();
-            $table->decimal('price_difference', 10, 2)->default(0.00); // Price adjustment from base product price
+            $table->decimal('price', 10, 2); // Price for this variant
             $table->integer('stock')->default(0); // Quantity in stock
+            $table->string('video_url')->nullable(); // Video URL for this variant
             $table->timestamps();
         });
     }

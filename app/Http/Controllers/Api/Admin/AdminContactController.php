@@ -297,4 +297,153 @@ class AdminContactController extends Controller
             throw $e;
         }
     }
+    
+    /**
+     * Get contact form statistics
+     */
+    public function stats()
+    {
+        try {
+            $stats = [
+                'total_forms' => DB::table('contact_forms')->count(),
+                'by_status' => [
+                    'new' => DB::table('contact_forms')->where('status', 'new')->count(),
+                    'read' => DB::table('contact_forms')->where('status', 'read')->count(),
+                    'replied' => DB::table('contact_forms')->where('status', 'replied')->count(),
+                    'closed' => DB::table('contact_forms')->where('status', 'closed')->count(),
+                ],
+                'recent_forms' => DB::table('contact_forms')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get([
+                        'id',
+                        'first_name',
+                        'last_name',
+                        'email',
+                        'subject',
+                        'status',
+                        'created_at'
+                    ]),
+                'monthly_stats' => DB::table('contact_forms')
+                    ->selectRaw('MONTH(created_at) as month, COUNT(*) as count')
+                    ->groupBy('month')
+                    ->orderBy('month')
+                    ->get(),
+            ];
+
+            return response()->json($stats);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch contact form statistics', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to fetch contact form statistics',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Bulk update contact form statuses
+     */
+    public function bulkUpdate(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'contact_ids' => 'required|array',
+                'contact_ids.*' => 'integer|exists:contact_forms,id',
+                'status' => 'required|in:new,read,replied,closed',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $contactIds = $request->contact_ids;
+            $status = $request->status;
+
+            DB::table('contact_forms')
+                ->whereIn('id', $contactIds)
+                ->update([
+                    'status' => $status,
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Bulk updated contact forms', [
+                'contact_ids' => $contactIds,
+                'status' => $status,
+                'count' => count($contactIds)
+            ]);
+
+            return response()->json([
+                'message' => 'Contact forms updated successfully',
+                'updated_count' => count($contactIds),
+                'success' => true
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to bulk update contact forms', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to bulk update contact forms',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Bulk delete contact forms
+     */
+    public function bulkDelete(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'contact_ids' => 'required|array',
+                'contact_ids.*' => 'integer|exists:contact_forms,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $contactIds = $request->contact_ids;
+
+            DB::table('contact_forms')
+                ->whereIn('id', $contactIds)
+                ->delete();
+
+            Log::info('Bulk deleted contact forms', [
+                'contact_ids' => $contactIds,
+                'count' => count($contactIds)
+            ]);
+
+            return response()->json([
+                'message' => 'Contact forms deleted successfully',
+                'deleted_count' => count($contactIds),
+                'success' => true
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to bulk delete contact forms', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to bulk delete contact forms',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -15,9 +15,14 @@ class Product extends Model
     protected $fillable = [
         'name',
         'description',
+        'size_guide_image',
         'gender',
-        'price',
         'category_id',
+        'discount', // Add discount field
+    ];
+
+    protected $casts = [
+        // JSON casting removed - using proper relationships now
     ];
 
     // Relationship to Category
@@ -33,10 +38,34 @@ class Product extends Model
     }
 
     // Polymorphic relationship to Images
-    // This is the line your error is pointing to (line 35 in my common structure)
     public function images()
     {
-        return $this->morphMany(Image::class, 'imageable');
+        return $this->morphMany(Image::class, 'imageable')->where('image_type', 'main')->orderBy('sort_order');
+    }
+    
+    
+    // Get all images regardless of type
+    public function allImages()
+    {
+        return $this->morphMany(Image::class, 'imageable')->orderBy('image_type')->orderBy('sort_order');
+    }
+
+    // Get detailed images
+    public function detailedImages()
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('image_type', 'detailed')->orderBy('sort_order');
+    }
+
+    // Get mobile-specific detailed images
+    public function mobileDetailedImages()
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('image_type', 'detailed')->where('is_mobile', true)->orderBy('sort_order');
+    }
+
+    // Get non-mobile detailed images
+    public function desktopDetailedImages()
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('image_type', 'detailed')->where('is_mobile', false)->orderBy('sort_order');
     }
 
     // Relationship to ProductReviews

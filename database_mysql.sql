@@ -84,27 +84,27 @@ INSERT INTO `products` (`id`, `category_id`, `name`, `description`, `gender`, `p
 ('15', '3', 'Women\'s Premium Black Leather Jacket', 'A premium black leather jacket with luxurious details designed for women. Features exceptional craftsmanship and the finest leather quality. The ultimate statement piece for the discerning woman who demands the best.', 'female', '339.99', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
 ('27', '3', 'Men\'s Classic Leather Jacket', 'Classic leather jacket for men. Perfect for winters.', 'male', '150', '2025-09-17 17:32:05', '2025-09-17 17:32:05');
 
-CREATE TABLE `product_variants` (`id` INT AUTO_INCREMENT PRIMARY KEY not null, `product_id` INT NOT NULL, `sku` VARCHAR(255) NOT NULL, `color` varchar, `size` varchar, `price_difference` numeric not null default '0', `stock` INT NOT NULL default '0', `created_at` datetime, `updated_at` datetime, foreign key(`product_id`) references `products`(`id`) on delete cascade) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE `product_variants` (`id` INT AUTO_INCREMENT PRIMARY KEY not null, `product_id` INT NOT NULL, `sku` VARCHAR(255) NOT NULL, `color` varchar, `size` varchar, `price` numeric not null, `stock` INT NOT NULL default '0', `created_at` datetime, `updated_at` datetime, foreign key(`product_id`) references `products`(`id`) on delete cascade) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data for table `product_variants`
-INSERT INTO `product_variants` (`id`, `product_id`, `sku`, `color`, `size`, `price_difference`, `stock`, `created_at`, `updated_at`) VALUES
-('37', '12', 'WCBLJ-BLK-XS-001', 'Black', 'XS', '0', '15', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('38', '12', 'WCBLJ-BLK-S-002', 'Black', 'S', '0', '25', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('39', '12', 'WCBLJ-BLK-M-003', 'Black', 'M', '0', '30', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('40', '12', 'WCBLJ-BLK-L-004', 'Black', 'L', '0', '20', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('41', '13', 'WMBLJ-BLK-XS-001', 'Black', 'XS', '0', '12', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('42', '13', 'WMBLJ-BLK-S-002', 'Black', 'S', '0', '22', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('43', '13', 'WMBLJ-BLK-M-003', 'Black', 'M', '0', '28', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('44', '13', 'WMBLJ-BLK-L-004', 'Black', 'L', '0', '18', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('45', '14', 'WEBLJ-BLK-XS-001', 'Black', 'XS', '0', '10', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('46', '14', 'WEBLJ-BLK-S-002', 'Black', 'S', '0', '20', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('47', '14', 'WEBLJ-BLK-M-003', 'Black', 'M', '0', '25', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('48', '14', 'WEBLJ-BLK-L-004', 'Black', 'L', '0', '15', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('49', '15', 'WPBLJ-BLK-XS-001', 'Black', 'XS', '0', '8', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('50', '15', 'WPBLJ-BLK-S-002', 'Black', 'S', '0', '18', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('51', '15', 'WPBLJ-BLK-M-003', 'Black', 'M', '0', '22', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('52', '15', 'WPBLJ-BLK-L-004', 'Black', 'L', '0', '12', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
-('61', '27', 'men\'s-classic-leather-jacket-l-black', 'Black', 'L', '0', '30', '2025-09-17 17:32:07', '2025-09-17 17:32:07');
+INSERT INTO `product_variants` (`id`, `product_id`, `sku`, `color`, `size`, `price`, `stock`, `created_at`, `updated_at`) VALUES
+('37', '12', 'WCBLJ-BLK-XS-001', 'Black', 'XS', '279.99', '15', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('38', '12', 'WCBLJ-BLK-S-002', 'Black', 'S', '279.99', '25', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('39', '12', 'WCBLJ-BLK-M-003', 'Black', 'M', '289.99', '30', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('40', '12', 'WCBLJ-BLK-L-004', 'Black', 'L', '299.99', '20', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('41', '13', 'WMBLJ-BLK-XS-001', 'Black', 'XS', '299.99', '12', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('42', '13', 'WMBLJ-BLK-S-002', 'Black', 'S', '299.99', '22', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('43', '13', 'WMBLJ-BLK-M-003', 'Black', 'M', '309.99', '28', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('44', '13', 'WMBLJ-BLK-L-004', 'Black', 'L', '319.99', '18', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('45', '14', 'WEBLJ-BLK-XS-001', 'Black', 'XS', '319.99', '10', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('46', '14', 'WEBLJ-BLK-S-002', 'Black', 'S', '319.99', '20', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('47', '14', 'WEBLJ-BLK-M-003', 'Black', 'M', '329.99', '25', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('48', '14', 'WEBLJ-BLK-L-004', 'Black', 'L', '339.99', '15', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('49', '15', 'WPBLJ-BLK-XS-001', 'Black', 'XS', '339.99', '8', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('50', '15', 'WPBLJ-BLK-S-002', 'Black', 'S', '339.99', '18', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('51', '15', 'WPBLJ-BLK-M-003', 'Black', 'M', '349.99', '22', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('52', '15', 'WPBLJ-BLK-L-004', 'Black', 'L', '359.99', '12', '2025-09-16 21:21:49', '2025-09-16 21:21:49'),
+('61', '27', 'men\'s-classic-leather-jacket-l-black', 'Black', 'L', '150', '30', '2025-09-17 17:32:07', '2025-09-17 17:32:07');
 
 CREATE TABLE `images` (`id` INT AUTO_INCREMENT PRIMARY KEY not null, `url` VARCHAR(255) NOT NULL, `alt_VARCHAR(255)` varchar, `sort_order` INT NOT NULL default '0', `imageable_type` VARCHAR(255) NOT NULL, `imageable_id` INT NOT NULL, `created_at` datetime, `updated_at` datetime) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

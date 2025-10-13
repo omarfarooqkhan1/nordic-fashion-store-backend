@@ -24,6 +24,8 @@ class User extends Authenticatable
         'email_verification_code',
         'email_verification_code_created_at',
         'password_reset_code',
+        'registration_date',
+        'is_admin_notified',
     ];
     /**
      * Check if user is email-verified (for password users)
@@ -57,7 +59,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'email_verification_code_created_at' => 'datetime',
+            'registration_date' => 'datetime',
             'password' => 'hashed',
+            'is_admin_notified' => 'boolean',
         ];
     }
 
@@ -91,6 +95,14 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return $this->role === 'customer';
+    }
+
+    /**
+     * Check if user is the super admin
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->email === 'admin@example.com';
     }
 
     /**

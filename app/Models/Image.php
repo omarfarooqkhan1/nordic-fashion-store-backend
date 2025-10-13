@@ -14,8 +14,15 @@ class Image extends Model
         'url',
         'alt_text',
         'sort_order',
+        'image_type', // Add image type field
+        'is_mobile', // Add is_mobile field
         'imageable_id',   // Added for clarity, though morphTo handles this
         'imageable_type', // Added for clarity, though morphTo handles this
+    ];
+
+    // Cast is_mobile to boolean
+    protected $casts = [
+        'is_mobile' => 'boolean',
     ];
 
     /**

@@ -59,7 +59,7 @@ class LocalImageService
             // Create directory structure
             // For blogs, store directly in blogs folder without images prefix
             if ($folder === 'blogs') {
-                $directory = $folder; // Direct to blogs/ folder
+                $directory = $this->basePath . '/' . $folder; // Direct to blogs/ folder
             } else {
                 // Store all images directly under /images for simplicity
                 $directory = $this->basePath;

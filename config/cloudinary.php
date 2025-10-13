@@ -15,6 +15,6 @@ return [
     'auto_format' => true,
     
     // Storage management
-    'max_file_size' => 10485760, // 10MB in bytes
+    'max_file_size' => 52428800, // 50MB in bytes
     'allowed_formats' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
 ];
