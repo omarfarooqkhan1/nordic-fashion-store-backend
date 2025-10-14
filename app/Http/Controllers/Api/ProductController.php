@@ -100,7 +100,6 @@ class ProductController extends Controller
             'variants' => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string',
             'variants.*.size' => 'required_with:variants|string',
-            'variants.*.actual_price' => 'required_with:variants|numeric',
             'variants.*.stock' => 'required_with:variants|integer',
             // add other variant fields as needed
         ]);
@@ -342,7 +341,7 @@ class ProductController extends Controller
                         'sku' => $rowData['sku'] ?? ($product->name . '-' . uniqid()),
                         'color' => $rowData['color'] ?? null,
                         'size' => $rowData['size'] ?? null,
-                        'actual_price' => isset($rowData['price']) ? (float) $rowData['price'] : 0.00,
+                        'price' => isset($rowData['price']) ? (float) $rowData['price'] : 0.00,
                         'stock' => isset($rowData['stock']) ? (int) $rowData['stock'] : 0,
                         'video_url' => $rowData['video_url'] ?? null,
                     ];
@@ -981,7 +980,6 @@ class ProductController extends Controller
             'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
             'sku' => 'nullable|string|max:100|unique:product_variants',
-            'actual_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'temp_image_ids' => 'nullable|array',
             'temp_image_ids.*' => 'integer|exists:images,id',
@@ -992,10 +990,6 @@ class ProductController extends Controller
             $validated['sku'] = $this->generateSKU($product, $validated['size'], $validated['color']);
         }
 
-        // Map actual_price to price for DB compatibility
-        if (isset($validated['actual_price'])) {
-            $validated['price'] = $validated['actual_price'];
-        }
         $variant = $product->variants()->create($validated);
 
         // Handle image reassignment for new variants
@@ -1077,7 +1071,6 @@ class ProductController extends Controller
             'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
             'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
-            'actual_price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'temp_image_ids' => 'nullable|array',
             'temp_image_ids.*' => 'integer|exists:images,id',
@@ -1096,10 +1089,6 @@ class ProductController extends Controller
             ], 422);
         }
 
-        // Map actual_price to price for DB compatibility
-        if (isset($validated['actual_price'])) {
-            $validated['price'] = $validated['actual_price'];
-        }
         $variant->update($validated);
 
         // Load the images relationship for the response

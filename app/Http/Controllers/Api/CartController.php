@@ -81,14 +81,9 @@ class CartController extends Controller
             
             // Transform each cart item to match frontend structure
             foreach ($transformedCart['items'] as &$item) {
-                // Rename 'product_variant' to 'variant' and add 'actual_price'
+                // Rename 'product_variant' to 'variant' and add variant_id
                 $item['variant'] = $item['product_variant'];
                 unset($item['product_variant']);
-                
-                // Use the variant's actual_price directly
-                $item['variant']['actual_price'] = $item['variant']['actual_price'];
-                
-                // Add variant_id for frontend compatibility
                 $item['variant_id'] = $item['variant']['id'];
             }
 
@@ -215,14 +210,9 @@ class CartController extends Controller
             
             // Transform each cart item to match frontend structure
             foreach ($transformedCart['items'] as &$item) {
-                // Rename 'product_variant' to 'variant' and add 'actual_price'
+                // Rename 'product_variant' to 'variant' and add variant_id
                 $item['variant'] = $item['product_variant'];
                 unset($item['product_variant']);
-                
-                // Use the variant's actual_price directly
-                $item['variant']['actual_price'] = $item['variant']['actual_price'];
-                
-                // Add variant_id for frontend compatibility
                 $item['variant_id'] = $item['variant']['id'];
             }
 

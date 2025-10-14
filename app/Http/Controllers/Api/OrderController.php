@@ -934,8 +934,39 @@ class OrderController extends Controller
     }
     
     /**
+     * Authenticate user using Sanctum token from Authorization header
+     */
+    private function authenticateWithSanctum(Request $request)
+    {
+        $authHeader = $request->header('Authorization');
+        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
+            return null;
+        }
+        
+        $token = substr($authHeader, 7); // Remove 'Bearer ' prefix
+        
+        try {
+            $personalAccessToken = PersonalAccessToken::findToken($token);
+            if ($personalAccessToken && (!$personalAccessToken->expires_at || $personalAccessToken->expires_at->isFuture())) {
+                $user = $personalAccessToken->tokenable;
+                if ($user) {
+                    // For Sanctum, we need to set the user on the request
+                    $request->setUserResolver(function () use ($user) {
+                        return $user;
+                    });
+                    return $user;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to authenticate user with Sanctum token in OrderController', ['error' => $e->getMessage()]);
+        }
+        
+        return null;
+    }
+    
+    /**
      * Get authenticated user from request, handling both Auth0 and Sanctum
-{{ ... }}
+     */
     private function getAuthenticatedUser(Request $request)
     {
         // First, try to get user from the request (this works for Auth0 JWT tokens)
