@@ -100,7 +100,7 @@ class ProductController extends Controller
             'variants' => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string',
             'variants.*.size' => 'required_with:variants|string',
-            'variants.*.stock' => 'required_with:variants|integer',
+            
             // add other variant fields as needed
         ]);
 
@@ -143,8 +143,9 @@ class ProductController extends Controller
     }
 
     /**
-     * Bulk upload products from CSV (Admin only)
+     * Bulk upload products from CSV (Admin only) - Temporarily commented out
      */
+    /*
     public function bulkUpload(Request $request)
     {
         $request->validate([
@@ -155,7 +156,7 @@ class ProductController extends Controller
         try {
             $file = $request->file('upload_file');
             $updateExisting = filter_var($request->input('update_existing', false), FILTER_VALIDATE_BOOLEAN);
-            
+
             // Debug logging
             Log::info('Bulk upload started', [
                 'filename' => $file->getClientOriginalName(),
@@ -166,7 +167,7 @@ class ProductController extends Controller
 
             // Check if it's a ZIP file or CSV
             $isZipFile = in_array($file->getMimeType(), ['application/zip', 'application/x-zip-compressed']);
-            
+
             if ($isZipFile) {
                 return $this->handleZipUpload($file, $updateExisting);
             } else {
@@ -185,6 +186,7 @@ class ProductController extends Controller
             ], 500);
         }
     }
+    */
 
     /**
      * Handle ZIP file upload with CSV and images
@@ -342,7 +344,7 @@ class ProductController extends Controller
                         'color' => $rowData['color'] ?? null,
                         'size' => $rowData['size'] ?? null,
                         'price' => isset($rowData['price']) ? (float) $rowData['price'] : 0.00,
-                        'stock' => isset($rowData['stock']) ? (int) $rowData['stock'] : 0,
+                        
                         'video_url' => $rowData['video_url'] ?? null,
                     ];
 
@@ -628,7 +630,7 @@ class ProductController extends Controller
             }
             try {
                 // Upload to local storage
-                $result = $localImageService->uploadImage($imageFile, 'products');
+                $result = $localImageService->uploadImage($imageFile);
                 if (!$result) {
                     throw new \Exception('Failed to upload image to local storage');
                 }
@@ -979,8 +981,9 @@ class ProductController extends Controller
         $validated = $request->validate([
             'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
+            'price' => 'required|numeric|min:0',
             'sku' => 'nullable|string|max:100|unique:product_variants',
-            'stock' => 'required|integer|min:0',
+            
             'temp_image_ids' => 'nullable|array',
             'temp_image_ids.*' => 'integer|exists:images,id',
         ]);
@@ -1070,8 +1073,9 @@ class ProductController extends Controller
         $validated = $request->validate([
             'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
+            'price' => 'required|numeric|min:0',
             'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
-            'stock' => 'required|integer|min:0',
+            
             'temp_image_ids' => 'nullable|array',
             'temp_image_ids.*' => 'integer|exists:images,id',
         ]);

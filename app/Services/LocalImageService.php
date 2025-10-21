@@ -31,7 +31,7 @@ class LocalImageService
      * @param array $options Processing options
      * @return array|null Returns upload result or null on failure
      */
-    public function uploadImage($file, string $folder = 'products', ?string $filename = null, array $options = []): ?array
+    public function uploadImage($file, ?string $folder = null, ?string $filename = null, array $options = []): ?array
     {
         try {
             // Handle both file paths and UploadedFile instances
@@ -58,13 +58,14 @@ class LocalImageService
 
             // Create directory structure
             // For blogs, store directly in blogs folder without images prefix
-            if ($folder === 'blogs') {
-                $directory = $this->basePath . '/' . $folder; // Direct to blogs/ folder
+            if ($folder) {
+                $fullPath = $this->basePath . '/' . $folder . '/' . $filename;
+                $publicUrl = '/storage/' . $fullPath;
             } else {
                 // Store all images directly under /images for simplicity
-                $directory = $this->basePath;
+                $fullPath = $this->basePath . '/' . $filename;
+                $publicUrl = $this->publicUrl . '/' . $fullPath;
             }
-            $fullPath = $directory . '/' . $filename;
 
             // Get original file size
             $originalSize = filesize($filePath);
@@ -84,9 +85,6 @@ class LocalImageService
             $storedSize = Storage::disk($this->disk)->size($fullPath);
             $storedSizeMB = round($storedSize / 1024 / 1024, 2);
             $compressionRatio = $originalSize > 0 ? round((1 - $storedSize / $originalSize) * 100, 1) : 0;
-
-            // Generate public URL
-            $publicUrl = $this->publicUrl . '/' . $fullPath;
 
             // Log upload results
             Log::info('Image uploaded locally', [

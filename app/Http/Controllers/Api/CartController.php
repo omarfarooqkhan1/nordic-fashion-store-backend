@@ -66,11 +66,7 @@ class CartController extends Controller
                 })->toArray()
             ]);
 
-            // Automatically adjust quantities based on current stock
-            $adjustedItems = $this->adjustCartQuantitiesForStock($cart);
-            
             // Reload cart after adjustments
-            $cart->refresh();
             $cart->load([
                 'items.productVariant.product.images',
                 'items.productVariant.images'
@@ -88,13 +84,7 @@ class CartController extends Controller
             }
 
             $response = ['cart' => $transformedCart];
-            
-            // Add adjustment notifications if any quantities were adjusted
-            if (!empty($adjustedItems)) {
-                $response['stock_adjustments'] = $adjustedItems;
-                $response['message'] = 'Some cart quantities were adjusted due to low stock';
-            }
-            
+                        
             return response()->json($response);
 
         } catch (\Exception $e) {
@@ -150,35 +140,13 @@ class CartController extends Controller
                 return response()->json(['message' => 'Product variant not found'], 404);
             }
 
-            // Check stock availability
             $requestedQuantity = $request->quantity;
-            $availableStock = $productVariant->stock;
-            
-            if ($requestedQuantity > $availableStock) {
-                return response()->json([
-                    'message' => 'Insufficient stock',
-                    'available' => $availableStock,
-                    'requested' => $requestedQuantity
-                ], 400);
-            }
 
             // Check if item already exists in cart
             $existingItem = $cart->items()->where('product_variant_id', $request->product_variant_id)->first();
             
             if ($existingItem) {
-                $newQuantity = $existingItem->quantity + $requestedQuantity;
-                
-                // Check if total quantity would exceed stock
-                if ($newQuantity > $availableStock) {
-                    return response()->json([
-                        'message' => 'Adding this quantity would exceed available stock',
-                        'available' => $availableStock,
-                        'current_in_cart' => $existingItem->quantity,
-                        'requested_additional' => $requestedQuantity,
-                        'total_would_be' => $newQuantity
-                    ], 400);
-                }
-                
+                $newQuantity = $existingItem->quantity + $requestedQuantity;                
                 $existingItem->update(['quantity' => $newQuantity]);
                 $message = 'Cart item quantity updated';
             } else {
@@ -195,11 +163,7 @@ class CartController extends Controller
                 'items.productVariant.images'
             ]);
 
-            // Automatically adjust quantities based on current stock
-            $adjustedItems = $this->adjustCartQuantitiesForStock($cart);
-            
             // Reload cart after adjustments
-            $cart->refresh();
             $cart->load([
                 'items.productVariant.product.images',
                 'items.productVariant.images'
@@ -220,13 +184,7 @@ class CartController extends Controller
                 'message' => $message,
                 'cart' => $transformedCart
             ];
-            
-            // Add adjustment notifications if any quantities were adjusted
-            if (!empty($adjustedItems)) {
-                $response['stock_adjustments'] = $adjustedItems;
-                $response['message'] .= ' (Some quantities adjusted due to low stock)';
-            }
-            
+                        
             return response()->json($response, 201);
 
         } catch (\Exception $e) {
@@ -276,22 +234,8 @@ class CartController extends Controller
                 return response()->json(['message' => 'Product variant not found'], 404);
             }
 
-            // Check stock availability
-            $availableStock = $productVariant->stock;
-            
-            if ($requestedQuantity > $availableStock) {
-                return response()->json([
-                    'message' => 'Insufficient stock',
-                    'available' => $availableStock,
-                    'requested' => $requestedQuantity
-                ], 400);
-            }
-
             $cartItem->update(['quantity' => $requestedQuantity]);
 
-            // Automatically adjust quantities based on current stock
-            $adjustedItems = $this->adjustCartQuantitiesForStock($cart);
-            
             // Reload cart after adjustments
             $cart->refresh();
             $cart->load(['items.productVariant.product', 'items.productVariant.images']);
@@ -300,13 +244,7 @@ class CartController extends Controller
                 'message' => 'Cart item updated',
                 'cart' => $cart
             ];
-            
-            // Add adjustment notifications if any quantities were adjusted
-            if (!empty($adjustedItems)) {
-                $response['stock_adjustments'] = $adjustedItems;
-                $response['message'] .= ' (Some quantities adjusted due to low stock)';
-            }
-            
+                        
             return response()->json($response);
 
         } catch (\Exception $e) {
@@ -443,36 +381,6 @@ class CartController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
-
-    /**
-     * Automatically adjust cart quantities based on current stock
-     */
-    private function adjustCartQuantitiesForStock(Cart $cart)
-    {
-        $adjustedItems = [];
-        
-        foreach ($cart->items as $item) {
-            $productVariant = $item->productVariant;
-            if (!$productVariant) continue;
-            
-            $currentQuantity = $item->quantity;
-            $availableStock = $productVariant->stock;
-            
-            if ($currentQuantity > $availableStock) {
-                // Reduce quantity to available stock
-                $item->update(['quantity' => $availableStock]);
-                $adjustedItems[] = [
-                    'item_id' => $item->id,
-                    'product_name' => $productVariant->product->name ?? 'Product',
-                    'old_quantity' => $currentQuantity,
-                    'new_quantity' => $availableStock,
-                    'available_stock' => $availableStock
-                ];
-            }
-        }
-        
-        return $adjustedItems;
     }
 
     /**

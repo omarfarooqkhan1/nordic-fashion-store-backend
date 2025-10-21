@@ -8,8 +8,7 @@ class VariantDTO extends BaseDTO
     public string $size;
     public string $color;
     public ?string $sku;
-    public float $actual_price;
-    public int $stock;
+    public float $price;
     public ?string $video_url;
     public ?string $video_path;
 
@@ -25,8 +24,7 @@ class VariantDTO extends BaseDTO
             'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
             'sku' => 'nullable|string|max:100',
-            'actual_price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
+            'price' => 'required|numeric|min:0',
             'video_url' => 'nullable|string',
             'video_path' => 'nullable|string',
         ];
@@ -44,8 +42,7 @@ class VariantDTO extends BaseDTO
             'size',
             'color',
             'sku',
-            'actual_price',
-            'stock',
+            'price',
             'video_url',
             'video_path',
         ];

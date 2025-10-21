@@ -119,9 +119,9 @@ class OrderTestController extends Controller
                     'product_variant_id' => $cartItem->product_variant_id,
                     'product_name' => $variant->product->name,
                     'variant_name' => $variant->name ?? ($variant->size . ' ' . $variant->color),
-                    'price' => $variant->actual_price ?? $variant->product->price,
+                    'price' => $variant->price ?? $variant->product->price,
                     'quantity' => $cartItem->quantity,
-                    'subtotal' => ($variant->actual_price ?? $variant->product->price) * $cartItem->quantity,
+                    'subtotal' => ($variant->price ?? $variant->product->price) * $cartItem->quantity,
                     'product_snapshot' => json_encode($productSnapshot),
                 ]);
                 

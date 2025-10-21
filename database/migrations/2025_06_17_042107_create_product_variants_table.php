@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('color')->nullable();
             $table->string('size')->nullable();
             $table->decimal('price', 10, 2); // Price for this variant
-            $table->integer('stock')->default(0); // Quantity in stock
             $table->string('video_url')->nullable(); // Video URL for this variant
             $table->timestamps();
         });

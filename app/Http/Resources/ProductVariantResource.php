@@ -40,8 +40,6 @@ class ProductVariantResource extends JsonResource
             'color' => $this->color,
             'size' => $this->size,
             'price' => $this->price,
-            'actual_price' => $this->actual_price, // Use the accessor
-            'stock' => $this->stock,
             'main_images' => ImageResource::collection($mainImages),
             'detailed_images' => ImageResource::collection($detailedImages),
             'mobile_detailed_images' => ImageResource::collection($mobileDetailedImages),

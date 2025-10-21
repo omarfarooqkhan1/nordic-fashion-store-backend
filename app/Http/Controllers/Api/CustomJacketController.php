@@ -115,8 +115,7 @@ class CustomJacketController extends Controller
             // Upload to local storage
             try {
                 $frontResult = $this->localImageService->uploadImage(
-                    $frontImage,
-                    'custom-jackets'
+                    $frontImage
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to upload front image', [
@@ -128,8 +127,7 @@ class CustomJacketController extends Controller
 
             try {
                 $backResult = $this->localImageService->uploadImage(
-                    $backImage,
-                    'custom-jackets'
+                    $backImage
                 );
             } catch (\Exception $e) {
                 Log::error('Failed to upload back image', [

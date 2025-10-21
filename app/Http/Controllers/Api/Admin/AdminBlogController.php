@@ -332,16 +332,20 @@ class AdminBlogController extends Controller
                 $filename = Str::slug($data['title'] ?? $blog->title) . '_featured_' . time() . '_' . uniqid();
 
                 // Delete old featured image if it exists and is a local file
-                if (!empty($blog->featured_image) && strpos($blog->featured_image, config('app.url')) === 0) {
-                    // Extract local path from URL
-                    $baseUrl = config('app.url');
-                    $localPath = str_replace($baseUrl . '/storage/', '', $blog->featured_image);
-                    if ($localPath) {
-                        $localImageService->deleteImage($localPath);
-                        Log::info('Old featured image deleted', [
-                            'blog_id' => $blog->id,
-                            'local_path' => $localPath
-                        ]);
+                if (!empty($blog->featured_image)) {
+                    // Check if it's a local file (contains /storage/ or is relative path)
+                    if (strpos($blog->featured_image, '/storage/') !== false || strpos($blog->featured_image, 'http') !== 0) {
+                        // Extract local path from URL or use as-is if relative
+                        $localPath = str_replace(config('app.url') . '/storage/', '', $blog->featured_image);
+                        // Remove any leading slash if present
+                        $localPath = ltrim($localPath, '/');
+                        if ($localPath) {
+                            $localImageService->deleteImage($localPath);
+                            Log::info('Old featured image deleted', [
+                                'blog_id' => $blog->id,
+                                'local_path' => $localPath
+                            ]);
+                        }
                     }
                 }
 

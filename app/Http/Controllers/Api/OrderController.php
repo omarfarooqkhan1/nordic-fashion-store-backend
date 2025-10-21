@@ -233,35 +233,11 @@ class OrderController extends Controller
                 if (!$variant) {
                     throw new \Exception('Product variant not found: ' . $cartItem->product_variant_id);
                 }
-                
-                // Real-time stock validation
-                if ($variant->stock < $cartItem->quantity) {
-                    $availableStock = $variant->stock;
-                    $requestedQuantity = $cartItem->quantity;
-                    $productName = $variant->product->name ?? 'Unknown Product';
-                    $variantInfo = $variant->size . ' - ' . $variant->color;
-                    
-                    Log::warning('Insufficient stock detected during checkout', [
-                        'product_variant_id' => $cartItem->product_variant_id,
-                        'product_name' => $productName,
-                        'variant_info' => $variantInfo,
-                        'requested_quantity' => $requestedQuantity,
-                        'available_stock' => $availableStock,
-                        'cart_item_id' => $cartItem->id
-                    ]);
-                    
-                    throw new \Exception(
-                        "Insufficient stock for {$productName} ({$variantInfo}). " .
-                        "Requested: {$requestedQuantity}, Available: {$availableStock}. " .
-                        "Please update your cart or try again later."
-                    );
-                }
-                
+                                
                 // Create snapshot of product data
                 $productSnapshot = [
                     'product' => $variant->product->toArray(),
                     'variant' => $variant->toArray(),
-                    'stock_at_checkout' => $variant->stock, // Record stock at checkout time
                     'requested_quantity' => $cartItem->quantity
                 ];
                 
@@ -271,24 +247,13 @@ class OrderController extends Controller
                     'product_variant_id' => $cartItem->product_variant_id,
                     'product_name' => $variant->product->name,
                     'variant_name' => $variant->name ?? ($variant->size . ' ' . $variant->color),
-                    'price' => $variant->actual_price ?? $variant->product->price,
+                    'price' => $variant->price ?? $variant->product->price,
                     'quantity' => $cartItem->quantity,
-                    'subtotal' => ($variant->actual_price ?? $variant->product->price) * $cartItem->quantity,
+                    'subtotal' => ($variant->price ?? $variant->product->price) * $cartItem->quantity,
                     'product_snapshot' => $productSnapshot,
                 ]);
                 
                 $orderItem->save();
-                
-                // Update stock (this is now safe since we validated above)
-                $variant->stock -= $cartItem->quantity;
-                $variant->save();
-                
-                Log::info('Stock updated for product variant', [
-                    'variant_id' => $variant->id,
-                    'old_stock' => $variant->stock + $cartItem->quantity,
-                    'new_stock' => $variant->stock,
-                    'quantity_sold' => $cartItem->quantity
-                ]);
             }
             
             // Create order items from custom jacket cart
@@ -770,35 +735,8 @@ class OrderController extends Controller
                     }
                     
                     $validationResults['total_items'] += $cartItem->quantity;
-                    $estimatedTotal = ($variant->actual_price ?? $variant->product->price) * $cartItem->quantity;
+                    $estimatedTotal = ($variant->price ?? $variant->product->price) * $cartItem->quantity;
                     $validationResults['estimated_total'] += $estimatedTotal;
-                    
-                    if ($variant->stock < $cartItem->quantity) {
-                        $availableStock = $variant->stock;
-                        $requestedQuantity = $cartItem->quantity;
-                        $productName = $variant->product->name ?? 'Unknown Product';
-                        $variantInfo = $variant->size . ' - ' . $variant->color;
-                        
-                        $validationResults['stock_issues'][] = [
-                            'type' => 'error',
-                            'message' => "Insufficient stock for {$productName} ({$variantInfo})",
-                            'details' => "Requested: {$requestedQuantity}, Available: {$availableStock}",
-                            'cart_item_id' => $cartItem->id,
-                            'product_name' => $productName,
-                            'variant_info' => $variantInfo,
-                            'requested_quantity' => $requestedQuantity,
-                            'available_stock' => $availableStock
-                        ];
-                        $validationResults['cart_valid'] = false;
-                    } elseif ($variant->stock <= 5) {
-                        // Warning for low stock
-                        $validationResults['warnings'][] = [
-                            'type' => 'warning',
-                            'message' => "Low stock warning for {$variant->product->name} ({$variantInfo})",
-                            'details' => "Only {$variant->stock} items remaining",
-                            'cart_item_id' => $cartItem->id
-                        ];
-                    }
                 }
             }
             

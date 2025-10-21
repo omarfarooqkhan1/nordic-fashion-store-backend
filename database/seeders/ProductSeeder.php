@@ -73,7 +73,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 299.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant1b = ProductVariant::create([
@@ -82,7 +82,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 309.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         // Shuffle and select 2 random blog images for desktop view
@@ -138,7 +138,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 319.99,
-            'stock' => 12,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant2b = ProductVariant::create([
@@ -147,7 +147,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 334.99,
-            'stock' => 7,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -207,7 +207,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 289.99,
-            'stock' => 9,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant3b = ProductVariant::create([
@@ -216,7 +216,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 301.99,
-            'stock' => 6,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -278,7 +278,7 @@ class ProductSeeder extends Seeder
             'color' => 'Brown',
             'size' => 'S',
             'price' => 329.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant4b = ProductVariant::create([
@@ -287,7 +287,7 @@ class ProductSeeder extends Seeder
             'color' => 'Brown',
             'size' => 'M',
             'price' => 339.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         // Shuffle and select 2 random blog images for desktop view
@@ -344,7 +344,7 @@ class ProductSeeder extends Seeder
             'color' => 'Brown',
             'size' => 'S',
             'price' => 299.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant5b = ProductVariant::create([
@@ -353,7 +353,7 @@ class ProductSeeder extends Seeder
             'color' => 'Brown',
             'size' => 'M',
             'price' => 309.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         // Shuffle and select 2 random blog images for desktop view
@@ -411,7 +411,7 @@ class ProductSeeder extends Seeder
             'color' => 'Dark Brown',
             'size' => 'S',
             'price' => 309.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant6b = ProductVariant::create([
@@ -420,7 +420,7 @@ class ProductSeeder extends Seeder
             'color' => 'Dark Brown',
             'size' => 'M',
             'price' => 319.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -522,7 +522,7 @@ class ProductSeeder extends Seeder
             'color' => 'Navy Blue',
             'size' => 'S',
             'price' => 279.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant9b = ProductVariant::create([
@@ -531,7 +531,7 @@ class ProductSeeder extends Seeder
             'color' => 'Navy Blue',
             'size' => 'M',
             'price' => 289.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         // Shuffle and select 2 random blog images for desktop view
@@ -589,7 +589,7 @@ class ProductSeeder extends Seeder
             'color' => 'Olive Green',
             'size' => 'S',
             'price' => 289.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant10b = ProductVariant::create([
@@ -598,7 +598,7 @@ class ProductSeeder extends Seeder
             'color' => 'Olive Green',
             'size' => 'M',
             'price' => 299.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -659,7 +659,7 @@ class ProductSeeder extends Seeder
             'color' => 'White',
             'size' => 'S',
             'price' => 299.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant11b = ProductVariant::create([
@@ -668,7 +668,7 @@ class ProductSeeder extends Seeder
             'color' => 'White',
             'size' => 'M',
             'price' => 309.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -730,7 +730,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 279.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant12b = ProductVariant::create([
@@ -739,7 +739,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 289.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -799,7 +799,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 299.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant13b = ProductVariant::create([
@@ -808,7 +808,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 309.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -869,7 +869,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 319.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant14b = ProductVariant::create([
@@ -878,7 +878,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 329.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         
@@ -942,7 +942,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 339.99,
-            'stock' => 10,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         $variant15b = ProductVariant::create([
@@ -951,7 +951,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'M',
             'price' => 349.99,
-            'stock' => 8,
+            
             'video_url' => '/storage/videos/jacket.mp4',
         ]);
         

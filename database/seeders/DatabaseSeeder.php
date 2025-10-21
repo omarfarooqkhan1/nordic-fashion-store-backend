@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
             BlogSeeder::class,      // Add blog seeder
             \Database\Seeders\FaqSeeder::class,
+            HeroImageSeeder::class, // Add hero image seeder
+            ReviewSeeder::class,    // Add review seeder
             // OrderSeeder::class, // Uncomment if you want to seed orders too
         ]);
     }

@@ -16,7 +16,6 @@ class ProductVariant extends Model
         'color',
         'size',
         'price',
-        'stock',
         'video_url',
         'video_path',
     ];
@@ -26,10 +25,6 @@ class ProductVariant extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function getActualPriceAttribute(): float
-    {
-        return $this->price;
-    }
 
     /**
      * Get all of the images for the product variant.

@@ -45,8 +45,29 @@ class UserSeeder extends Seeder
             ]
         );
 
+        // Create 15 random customers for reviews
+        $customerNames = [
+            'Emma Johnson', 'Liam Smith', 'Olivia Brown', 'Noah Davis', 'Ava Wilson',
+            'William Garcia', 'Sophia Martinez', 'James Anderson', 'Isabella Taylor', 'Benjamin Thomas',
+            'Mia Hernandez', 'Lucas Moore', 'Charlotte Jackson', 'Henry White', 'Amelia Harris'
+        ];
+
+        foreach ($customerNames as $index => $name) {
+            $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
+            User::firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => bcrypt('password123'),
+                    'role' => 'customer',
+                    'email_verified_at' => now(),
+                ]
+            );
+        }
+
         $this->command->info('Users created successfully!');
         $this->command->info('- Admin: password authentication only');
         $this->command->info('- Customers: both Auth0 and password authentication');
+        $this->command->info('- 15 additional customers created for reviews');
     }
 }

@@ -26,8 +26,8 @@ class ProductResource extends JsonResource
 
                 $availability[$key] = $variant->stock > 0;
 
-                // Use accessor actual_price for price with price difference included
-                $variantPrices[$key] = $variant->actual_price;
+                // Use price directly since actual_price is no longer used
+                $variantPrices[$key] = $variant->price;
             }
         }
 
@@ -91,6 +91,21 @@ class ProductResource extends JsonResource
             }
         }
         
+        // Get similar products (4 random products from the same category, excluding current product)
+        $similarProducts = collect();
+        if ($this->relationLoaded('category') && $this->category) {
+            $similarProducts = $this->category->products()
+                ->where('id', '!=', $this->id)
+                ->inRandomOrder()
+                ->limit(4)
+                ->get()
+                ->map(function ($product) {
+                    // Load necessary relationships for similar products
+                    $product->loadMissing(['variants.images']);
+                    return $product;
+                });
+        }
+        
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -105,6 +120,7 @@ class ProductResource extends JsonResource
             'mobile_detailed_images' => ImageResource::collection($mobileDetailedImages), // Mobile detailed images
             'availability' => $availability,
             'variantPrices' => $variantPrices,
+            'similar_products' => ProductResource::collection($similarProducts), // Similar products
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

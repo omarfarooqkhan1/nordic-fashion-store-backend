@@ -211,6 +211,13 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/blogs/analytics', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'analytics']);
     Route::get('admin/blogs/export', [\App\Http\Controllers\Api\Admin\AdminBlogController::class, 'export']);
     
+    // Admin hero image management
+    Route::get('admin/hero-images', [\App\Http\Controllers\Api\HeroImageController::class, 'adminIndex']);
+    Route::post('admin/hero-images', [\App\Http\Controllers\Api\HeroImageController::class, 'store']);
+    Route::put('admin/hero-images/{heroImage}', [\App\Http\Controllers\Api\HeroImageController::class, 'update']);
+    Route::delete('admin/hero-images/{heroImage}', [\App\Http\Controllers\Api\HeroImageController::class, 'destroy']);
+    Route::post('admin/hero-images/reorder', [\App\Http\Controllers\Api\HeroImageController::class, 'reorder']);
+
     // Admin contact form management
     Route::get('admin/contact-forms', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'index']);
     Route::put('admin/contact-forms/{id}', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'update']);
@@ -272,6 +279,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('reviews/{review}/reject', [\App\Http\Controllers\Api\ProductReviewController::class, 'reject']);
     });
 });
+
+// Hero images public endpoints
+Route::get('hero-images', [\App\Http\Controllers\Api\HeroImageController::class, 'index']);
 
 // FAQ public endpoints
 Route::get('faqs', [\App\Http\Controllers\Api\FaqController::class, 'index']);
