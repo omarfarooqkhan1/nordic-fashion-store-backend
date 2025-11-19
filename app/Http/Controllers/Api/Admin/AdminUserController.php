@@ -67,7 +67,7 @@ class AdminUserController extends Controller
                     'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
                     'status' => $user->email_verified_at ? 'active' : 'inactive',
                     'orders_count' => $user->orders()->count(),
-                    'total_spent' => $user->orders()->sum('total_amount') ?? 0,
+                    'total_spent' => $user->orders()->sum('total') ?? 0,
                 ];
             });
 
@@ -112,7 +112,7 @@ class AdminUserController extends Controller
                 'updated_at' => $user->updated_at->format('Y-m-d H:i:s'),
                 'status' => $user->email_verified_at ? 'active' : 'inactive',
                 'orders_count' => $user->orders()->count(),
-                'total_spent' => $user->orders()->sum('total_amount') ?? 0,
+                'total_spent' => $user->orders()->sum('total') ?? 0,
             ]);
 
         } catch (\Exception $e) {

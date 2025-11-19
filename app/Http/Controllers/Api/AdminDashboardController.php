@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\ProductVariant;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
@@ -37,16 +38,10 @@ class AdminDashboardController extends Controller
         $stats['pending_orders'] = Order::where('status', 'pending')->count();
         $stats['shipped_orders'] = Order::where('status', 'shipped')->count();
         
-        // Contact forms (assuming you have a ContactForm model)
+        // Contact forms (using database table directly)
         try {
-            $contactFormModel = '\App\Models\ContactForm';
-            if (class_exists($contactFormModel)) {
-                $stats['new_contact_forms'] = $contactFormModel::where('created_at', '>=', $startDate)->count();
-                $stats['unread_contact_forms'] = $contactFormModel::where('is_read', false)->count();
-            } else {
-                $stats['new_contact_forms'] = 0;
-                $stats['unread_contact_forms'] = 0;
-            }
+            $stats['new_contact_forms'] = DB::table('contact_forms')->where('created_at', '>=', $startDate)->count();
+            $stats['unread_contact_forms'] = DB::table('contact_forms')->where('status', 'new')->count();
         } catch (\Exception $e) {
             $stats['new_contact_forms'] = 0;
             $stats['unread_contact_forms'] = 0;

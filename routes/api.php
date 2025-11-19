@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\CloudinaryController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
+use App\Http\Controllers\Api\ChatbotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -285,6 +286,9 @@ Route::get('hero-images', [\App\Http\Controllers\Api\HeroImageController::class,
 
 // FAQ public endpoints
 Route::get('faqs', [\App\Http\Controllers\Api\FaqController::class, 'index']);
+
+// Chatbot endpoint
+Route::post('chatbot', [ChatbotController::class, 'chat']);
 
 /*
 |--------------------------------------------------------------------------

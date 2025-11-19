@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('size')->nullable();
             $table->decimal('price', 10, 2); // Price for this variant
             $table->string('video_url')->nullable(); // Video URL for this variant
+            $table->string('video_path')->nullable();
             $table->timestamps();
         });
     }

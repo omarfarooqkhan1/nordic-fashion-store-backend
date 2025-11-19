@@ -73,8 +73,7 @@ class ProductSeeder extends Seeder
             'color' => 'Black',
             'size' => 'S',
             'price' => 299.99,
-            
-            'video_url' => '/storage/videos/jacket.mp4',
+            'video_path' => '/storage/videos/jacket.mp4',
         ]);
         $variant1b = ProductVariant::create([
             'product_id' => $product1->id,
