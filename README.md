@@ -23,13 +23,14 @@ php artisan serve
 # API runs on http://localhost:8000
 ```
 
-## �️ Tech Stack
+## 🛠️ Tech Stack
 
 - **Laravel 11** with PHP 8.2+
 - **MySQL** database
 - **Laravel Sanctum** for authentication
 - **Laravel Mail** for email notifications
-- **Cloudinary** for image storage
+- **Local Image Storage** (replaced Cloudinary for cost savings)
+- **Stripe** for payment processing
 
 ## 🧩 Key Features
 
@@ -40,6 +41,9 @@ php artisan serve
 - **Admin Dashboard** API endpoints
 - **Email Notifications** with professional templates
 - **Bulk Operations** for product management
+- **Product Review System** with media support
+- **Stripe Payment Integration** with webhook handling
+- **Local Image Storage** with automatic optimization
 
 ## 🔧 Environment Configuration
 
@@ -60,12 +64,21 @@ MAIL_FROM_ADDRESS="noreply@nordflex.shop"
 MAIL_FROM_NAME="Nord Flex"
 ```
 
-### Optional: Cloudinary
+### Stripe Configuration
 ```env
-CLOUDINARY_URL=cloudinary://key:secret@cloud_name
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
+STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 ```
 
-## � Development Commands
+### Local Image Storage
+```env
+FILESYSTEM_DISK=public
+IMAGE_DRIVER=gd
+IMAGE_QUALITY=85
+```
+
+## 🏗️ Development Commands
 
 ```bash
 php artisan migrate       # Run database migrations
@@ -74,7 +87,7 @@ php artisan cache:clear   # Clear application cache
 php artisan test          # Run tests
 ```
 
-## � API Structure
+## 📁 API Structure
 
 ```
 app/
@@ -88,6 +101,8 @@ database/migrations/    # Database schema
 ```
 
 For full project documentation, see the main README.md in the parent directory.
+
+## 📦 Getting Started
 
 1.  **Clone the repository:**
 
@@ -132,15 +147,35 @@ For full project documentation, see the main README.md in the parent directory.
 
 ## ⚙️ API Endpoints (Examples)
 
-*(As you develop your API, list key endpoints here with their methods and brief descriptions.)*
-
 * `GET /api/products` - Retrieve a list of all products.
 * `POST /api/register` - User registration.
 * `POST /api/login` - User login.
+* `POST /api/stripe/create-payment-intent` - Create payment intent.
+* `POST /api/products/{id}/reviews` - Create product review.
 
 ## 🔒 Authentication
 
-This project intends to integrate **Auth0** for secure API authentication and authorization using JWTs. The integration is currently in progress. Once complete, protected routes will require a valid JWT Access Token in the `Authorization: Bearer <TOKEN>` header.
+This project integrates **Auth0** for secure API authentication and authorization using JWTs. Protected routes require a valid JWT Access Token in the `Authorization: Bearer <TOKEN>` header.
+
+## 💡 Current Implementation Status
+
+This version of the backend is fully implemented with:
+- Complete product management system with variants and images
+- Order management with tracking support
+- Dual authentication system (Auth0 + traditional)
+- Guest checkout functionality
+- Admin dashboard with full CRUD operations
+- Email notifications for various events
+- Bulk operations for product management
+- Product review system with media support
+- Stripe payment integration with webhook handling
+- Local image storage with automatic optimization (replaced Cloudinary)
+
+## 🛣️ Future Enhancements
+
+* **Advanced Analytics:** Implementation of sales and user behavior tracking
+* **Inventory Management:** Advanced stock level tracking and alerts
+* **Mobile App API:** Dedicated endpoints for mobile application
 
 ## 🤝 Contributing
 
