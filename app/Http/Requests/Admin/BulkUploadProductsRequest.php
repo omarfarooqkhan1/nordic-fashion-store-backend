@@ -11,7 +11,7 @@ class BulkUploadProductsRequest extends FormRequest
         return $this->user() && $this->user()->role === 'admin';
     }
 
-    public function rules(): array
+public function rules(): array
     {
         return [
             'file' => 'required|file|mimes:csv,txt|max:10240', // 10MB max
@@ -19,7 +19,7 @@ class BulkUploadProductsRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
+public function messages(): array
     {
         return [
             'file.required' => 'Please upload a CSV file.',

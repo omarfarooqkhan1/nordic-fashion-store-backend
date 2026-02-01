@@ -11,22 +11,13 @@ Artisan::command('inspire', function () {
 // Schedule Cloudinary storage monitoring and cleanup
 Schedule::command('cloudinary:manage usage')
     ->daily()
-    ->withoutOverlapping()
-    ->onFailure(function () {
-        \Illuminate\Support\Facades\Log::error('Failed to check Cloudinary storage usage');
-    });
+    ->withoutOverlapping();
 
 Schedule::command('cloudinary:manage cleanup --days=90 --force')
     ->weekly()
-    ->withoutOverlapping()
-    ->onFailure(function () {
-        \Illuminate\Support\Facades\Log::error('Failed to cleanup Cloudinary storage');
-    });
+    ->withoutOverlapping();
 
 // Schedule expired guest cart cleanup
 Schedule::command('cart:cleanup-expired-guest-carts --days=7')
     ->daily()
-    ->withoutOverlapping()
-    ->onFailure(function () {
-        \Illuminate\Support\Facades\Log::error('Failed to cleanup expired guest carts');
-    });
+    ->withoutOverlapping();

@@ -43,31 +43,9 @@ class VariantService
 
             $data['product_id'] = $product->id;
 
-            $variant = ProductVariant::create($data);
-
-            Log::info('Variant created successfully', [
-                'product_id' => $product->id,
-                'variant_id' => $variant->id,
-                'sku' => $variant->sku
-            ]);
-
-            return $variant;
-        } catch (VariantException $e) {
-            Log::error('Variant creation failed', [
-                'product_id' => $product->id,
-                'data' => $data,
-                'error' => $e->getMessage()
-            ]);
-
-            throw $e;
-        } catch (Exception $e) {
-            Log::error('Unexpected error during variant creation', [
-                'product_id' => $product->id,
-                'data' => $data,
-                'error' => $e->getMessage()
-            ]);
-
-            throw new VariantException('Failed to create variant: ' . $e->getMessage());
+            $variant = ProductVariant::create($data);return $variant;
+        } catch (VariantException $e) {throw $e;
+        } catch (Exception $e) {throw new VariantException('Failed to create variant: ' . $e->getMessage());
         }
     }
 
@@ -93,33 +71,9 @@ class VariantService
                 throw VariantException::duplicateVariant($data['size'], $data['color']);
             }
 
-            $variant->update($data);
-
-            Log::info('Variant updated successfully', [
-                'product_id' => $product->id,
-                'variant_id' => $variant->id,
-                'sku' => $variant->sku
-            ]);
-
-            return $variant;
-        } catch (VariantException $e) {
-            Log::error('Variant update failed', [
-                'product_id' => $product->id,
-                'variant_id' => $variant->id,
-                'data' => $data,
-                'error' => $e->getMessage()
-            ]);
-
-            throw $e;
-        } catch (Exception $e) {
-            Log::error('Unexpected error during variant update', [
-                'product_id' => $product->id,
-                'variant_id' => $variant->id,
-                'data' => $data,
-                'error' => $e->getMessage()
-            ]);
-
-            throw new VariantException('Failed to update variant: ' . $e->getMessage());
+            $variant->update($data);return $variant;
+        } catch (VariantException $e) {throw $e;
+        } catch (Exception $e) {throw new VariantException('Failed to update variant: ' . $e->getMessage());
         }
     }
 
@@ -141,23 +95,9 @@ class VariantService
             // Delete the variant itself
             $result = $variant->delete();
 
-            DB::commit();
-
-            Log::info('Variant deleted successfully', [
-                'variant_id' => $variant->id,
-                'product_id' => $variant->product_id
-            ]);
-
-            return $result;
+            DB::commit();return $result;
         } catch (Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to delete variant', [
-                'variant_id' => $variant->id,
-                'error' => $e->getMessage()
-            ]);
-
-            throw new VariantException('Failed to delete variant: ' . $e->getMessage());
+            DB::rollBack();throw new VariantException('Failed to delete variant: ' . $e->getMessage());
         }
     }
 
@@ -190,23 +130,8 @@ class VariantService
                         $uploadedImages[] = $imageModel;
                     }
                 }
-            }
-
-            Log::info('Variant images uploaded successfully', [
-                'variant_id' => $variant->id,
-                'image_count' => count($uploadedImages),
-                'image_type' => $imageType
-            ]);
-
-            return $uploadedImages;
-        } catch (Exception $e) {
-            Log::error('Failed to upload variant images', [
-                'variant_id' => $variant->id,
-                'image_count' => count($images),
-                'error' => $e->getMessage()
-            ]);
-
-            throw $e;
+            }return $uploadedImages;
+        } catch (Exception $e) {throw $e;
         }
     }
 
@@ -232,27 +157,11 @@ class VariantService
             foreach ($variants as $variant) {
                 $variant->video_path = $relativePath;
                 $variant->save();
-            }
-
-            Log::info('Variant video uploaded successfully', [
-                'product_id' => $product->id,
-                'color' => $color,
-                'variant_count' => $variants->count(),
-                'video_path' => $relativePath
-            ]);
-
-            return [
+            }return [
                 'video_path' => $relativePath,
                 'variant_ids' => $variants->pluck('id'),
             ];
-        } catch (Exception $e) {
-            Log::error('Failed to upload variant video', [
-                'product_id' => $product->id,
-                'color' => $color,
-                'error' => $e->getMessage()
-            ]);
-
-            throw $e;
+        } catch (Exception $e) {throw $e;
         }
     }
 

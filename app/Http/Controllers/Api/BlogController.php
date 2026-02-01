@@ -70,8 +70,7 @@ class BlogController extends Controller
             $transformedBlogs = $blogs->map(function ($blog) {
                 return $this->transformBlogForList($blog);
             });
-
-            return response()->json([
+return response()->json([
                 'data' => $transformedBlogs,
                 'pagination' => [
                     'current_page' => $blogs->currentPage(),
@@ -84,13 +83,7 @@ class BlogController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch blogs', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch blogs',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -122,17 +115,9 @@ class BlogController extends Controller
             // Transform the data
             $transformedBlog = $this->transformBlogForDetail($blog);
             $transformedBlog['related_posts'] = $relatedPosts;
+return response()->json($transformedBlog);
 
-            return response()->json($transformedBlog);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch blog post', [
-                'error' => $e->getMessage(),
-                'slug' => $slug,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch blog post',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -159,17 +144,9 @@ class BlogController extends Controller
             $transformedBlogs = $relatedBlogs->map(function ($blog) {
                 return $this->transformBlogForList($blog);
             });
+return response()->json($transformedBlogs);
 
-            return response()->json($transformedBlogs);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch related blog posts', [
-                'error' => $e->getMessage(),
-                'slug' => $slug,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch related blog posts',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -192,16 +169,9 @@ class BlogController extends Controller
             $transformedBlogs = $popularBlogs->map(function ($blog) {
                 return $this->transformBlogForList($blog);
             });
+return response()->json($transformedBlogs);
 
-            return response()->json($transformedBlogs);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch popular blog posts', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch popular blog posts',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -223,21 +193,13 @@ class BlogController extends Controller
             }
 
             $blog->incrementLikes();
-
-            return response()->json([
+return response()->json([
                 'message' => 'Blog post liked successfully',
                 'likes_count' => $blog->fresh()->likes_count,
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to like blog post', [
-                'error' => $e->getMessage(),
-                'slug' => $slug,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to like blog post',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -259,21 +221,13 @@ class BlogController extends Controller
             }
 
             $blog->incrementViews();
-
-            return response()->json([
+return response()->json([
                 'message' => 'View recorded successfully',
                 'views_count' => $blog->fresh()->views_count,
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to record blog view', [
-                'error' => $e->getMessage(),
-                'slug' => $slug,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to record view',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -321,15 +275,9 @@ class BlogController extends Controller
             });
 
             sort($tags);
-            return response()->json($tags);
+return response()->json($tags);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch blog tags', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch blog tags',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
@@ -360,21 +308,13 @@ class BlogController extends Controller
             $transformedBlogs = $blogs->map(function ($blog) {
                 return $this->transformBlogForList($blog);
             });
-
-            return response()->json([
+return response()->json([
                 'data' => $transformedBlogs,
                 'search_term' => $searchTerm,
                 'total_results' => $transformedBlogs->count()
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to search blogs', [
-                'error' => $e->getMessage(),
-                'search_term' => $request->get('q', ''),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to search blogs',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);

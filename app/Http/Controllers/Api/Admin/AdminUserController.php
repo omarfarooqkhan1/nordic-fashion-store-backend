@@ -21,8 +21,8 @@ class AdminUserController extends Controller
         try {
             $query = User::query();
 
-            // Exclude super admin (admin@example.com)
-            $query->where('email', '!=', 'admin@example.com');
+            // Exclude super admin (support@nordflex.store)
+            $query->where('email', '!=', 'support@nordflex.store');
 
             // Search by name or email
             if ($request->has('search') && $request->search) {
@@ -68,15 +68,88 @@ class AdminUserController extends Controller
                     'status' => $user->email_verified_at ? 'active' : 'inactive',
                     'orders_count' => $user->orders()->count(),
                     'total_spent' => $user->orders()->sum('total') ?? 0,
+                    'user_type' => 'registered',
                 ];
             });
 
-            return response()->json([
-                'users' => $transformedUsers,
-                'total' => $users->total(),
-                'current_page' => $users->currentPage(),
-                'per_page' => $users->perPage(),
-                'last_page' => $users->lastPage(),
+            // Get guest users (from orders without user_id)
+            $guestUsersQuery = \App\Models\Order::whereNull('user_id')
+                ->select('shipping_name as name', 'shipping_email as email', 'session_id')
+                ->selectRaw('MIN(created_at) as created_at') // Use MIN to avoid GROUP BY issues
+                ->groupBy('shipping_email', 'shipping_name', 'session_id');
+
+            // Apply search to guest users if provided
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $guestUsersQuery->where(function($q) use ($search) {
+                    $q->where('shipping_name', 'LIKE', "%{$search}%")
+                      ->orWhere('shipping_email', 'LIKE', "%{$search}%");
+                });
+            }
+
+            // Filter guest users by role and status
+            $includeGuestUsers = true;
+            
+            // Only exclude guest users if specifically filtering for admin role
+            if ($request->has('role') && $request->role === 'admin') {
+                $includeGuestUsers = false;
+            }
+            
+            // Only exclude guest users if specifically filtering for active/inactive status
+            // (since guests have their own 'guest' status)
+            if ($request->has('status') && $request->status && 
+                in_array($request->status, ['active', 'inactive', 'banned'])) {
+                $includeGuestUsers = false;
+            }
+
+            if ($includeGuestUsers) {
+                $guestUsers = $guestUsersQuery->get();
+                
+                $transformedGuestUsers = $guestUsers->map(function ($guestOrder) {
+                    $guestOrdersCount = \App\Models\Order::where('shipping_email', $guestOrder->email)
+                        ->whereNull('user_id')
+                        ->count();
+                    $guestTotalSpent = \App\Models\Order::where('shipping_email', $guestOrder->email)
+                        ->whereNull('user_id')
+                        ->sum('total');
+
+                    return [
+                        'id' => 'guest_' . $guestOrder->session_id,
+                        'name' => $guestOrder->name,
+                        'email' => $guestOrder->email,
+                        'role' => 'customer',
+                        'email_verified_at' => null,
+                        'created_at' => $guestOrder->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $guestOrder->created_at->format('Y-m-d H:i:s'),
+                        'status' => 'guest',
+                        'orders_count' => $guestOrdersCount,
+                        'total_spent' => $guestTotalSpent ?? 0,
+                        'user_type' => 'guest',
+                        'session_id' => $guestOrder->session_id,
+                    ];
+                });
+
+                // Merge registered users and guest users
+                $allUsers = $transformedUsers->concat($transformedGuestUsers);
+            } else {
+                $allUsers = $transformedUsers;
+            }
+
+            // Sort all users by created_at desc
+            $allUsers = $allUsers->sortByDesc('created_at')->values();
+
+            // Manual pagination for combined results
+            $total = $allUsers->count();
+            $currentPage = $page;
+            $perPage = $limit;
+            $offset = ($currentPage - 1) * $perPage;
+            $paginatedUsers = $allUsers->slice($offset, $perPage)->values();
+return response()->json([
+                'users' => $paginatedUsers,
+                'total' => $total,
+                'current_page' => $currentPage,
+                'per_page' => $perPage,
+                'last_page' => ceil($total / $perPage),
             ]);
 
         } catch (\Exception $e) {
@@ -101,8 +174,7 @@ class AdminUserController extends Controller
                     'message' => 'Cannot view the super admin account'
                 ], 403);
             }
-
-            return response()->json([
+return response()->json([
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -145,7 +217,7 @@ class AdminUserController extends Controller
             }
 
             // Prevent creation of another super admin account
-            if ($request->email === 'admin@example.com') {
+            if ($request->email === 'support@nordflex.store') {
                 return response()->json([
                     'message' => 'Cannot create another super admin account'
                 ], 403);
@@ -164,8 +236,7 @@ class AdminUserController extends Controller
             }
 
             $user = User::create($userData);
-
-            return response()->json([
+return response()->json([
                 'message' => 'User created successfully',
                 'user' => [
                     'id' => $user->id,
@@ -242,8 +313,7 @@ class AdminUserController extends Controller
             }
 
             $user->update($updateData);
-
-            return response()->json([
+return response()->json([
                 'message' => 'User updated successfully',
                 'user' => [
                     'id' => $user->id,
@@ -287,8 +357,7 @@ class AdminUserController extends Controller
             }
 
             $user->delete();
-
-            return response()->json([
+return response()->json([
                 'message' => 'User deleted successfully'
             ]);
 
@@ -338,8 +407,7 @@ class AdminUserController extends Controller
             }
 
             $user->update($updateData);
-
-            return response()->json([
+return response()->json([
                 'message' => 'User status updated successfully',
                 'user' => [
                     'id' => $user->id,
@@ -380,8 +448,7 @@ class AdminUserController extends Controller
             $user->update([
                 'password' => Hash::make($temporaryPassword)
             ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Password reset successfully',
                 'temporary_password' => $temporaryPassword
             ]);
@@ -408,14 +475,8 @@ class AdminUserController extends Controller
                 'inactive_users' => User::whereNull('email_verified_at')->count(),
                 'recent_registrations' => User::where('created_at', '>=', now()->subDays(30))->count(),
             ];
-
-            return response()->json($stats);
-        } catch (\Exception $e) {
-            Log::error('Failed to get user statistics', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+return response()->json($stats);
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to get user statistics'
             ], 500);
         }
@@ -445,7 +506,7 @@ class AdminUserController extends Controller
 
             // Prevent updating super admin
             $userIds = User::whereIn('id', $userIds)
-                ->where('email', '!=', 'admin@example.com')
+                ->where('email', '!=', 'support@nordflex.store')
                 ->pluck('id');
 
             $updateData = [];
@@ -456,18 +517,12 @@ class AdminUserController extends Controller
             }
 
             User::whereIn('id', $userIds)->update($updateData);
-
-            return response()->json([
+return response()->json([
                 'message' => 'User statuses updated successfully',
                 'updated_count' => count($userIds)
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to bulk update user statuses', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to bulk update user statuses',
                 'error' => $e->getMessage()
             ], 500);
@@ -496,7 +551,7 @@ class AdminUserController extends Controller
             
             // Prevent deleting super admin and current user
             $query = User::whereIn('id', $userIds)
-                ->where('email', '!=', 'admin@example.com');
+                ->where('email', '!=', 'support@nordflex.store');
                 
             $authUser = auth('sanctum')->user();
             if ($authUser) {
@@ -506,18 +561,12 @@ class AdminUserController extends Controller
             $userIds = $query->pluck('id');
 
             User::whereIn('id', $userIds)->delete();
-
-            return response()->json([
+return response()->json([
                 'message' => 'Users deleted successfully',
                 'deleted_count' => count($userIds)
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to bulk delete users', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to bulk delete users',
                 'error' => $e->getMessage()
             ], 500);

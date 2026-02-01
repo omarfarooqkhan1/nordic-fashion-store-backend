@@ -29,19 +29,12 @@ class UserController extends Controller
                 ->orderBy('is_default', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
-                
-            return response()->json([
+return response()->json([
                 'message' => 'Addresses retrieved successfully',
                 'addresses' => $addresses
             ]);
             
-        } catch (\Exception $e) {
-            Log::error('Error fetching user addresses: ' . $e->getMessage(), [
-                'user_id' => $user ? $user->id : null,
-                'trace' => $e->getTraceAsString()
-            ]);
-            
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch addresses',
                 'error' => $e->getMessage(),
                 'addresses' => []

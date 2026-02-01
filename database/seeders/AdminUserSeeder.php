@@ -15,9 +15,9 @@ class AdminUserSeeder extends Seeder
     {
         // Create admin user with password
         User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'support@nordflex.store'],
             [
-                'name' => 'Admin User',
+                'name' => 'Nordflex Support',
                 'password' => 'password123', // Will be automatically hashed
                 'role' => 'admin',
                 'email_verified_at' => now(),

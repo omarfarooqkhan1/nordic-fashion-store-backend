@@ -28,25 +28,11 @@ class FileUploadService
         try {
             $result = $this->storage->upload($file, $folder, $filename);
 
-            if ($result) {
-                Log::info('File uploaded successfully', [
-                    'folder' => $folder,
-                    'filename' => $result['filename'],
-                    'url' => $result['url']
-                ]);
-
-                return $result;
+            if ($result) {return $result;
             }
 
             return null;
-        } catch (\Exception $e) {
-            Log::error('Failed to upload file', [
-                'folder' => $folder,
-                'filename' => $filename,
-                'error' => $e->getMessage()
-            ]);
-
-            return null;
+        } catch (\Exception $e) { return null;
         }
     }
 
@@ -84,20 +70,10 @@ class FileUploadService
         try {
             $result = $this->storage->delete($path);
 
-            if ($result) {
-                Log::info('File deleted successfully', [
-                    'path' => $path
-                ]);
-            }
+            if ($result) {}
 
             return $result;
-        } catch (\Exception $e) {
-            Log::error('Failed to delete file', [
-                'path' => $path,
-                'error' => $e->getMessage()
-            ]);
-
-            return false;
+        } catch (\Exception $e) { return false;
         }
     }
 

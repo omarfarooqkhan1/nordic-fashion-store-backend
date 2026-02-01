@@ -25,6 +25,7 @@ return new class extends Migration
             $table->string('role')->default('customer');
             $table->timestamp('registration_date')->nullable();
             $table->boolean('is_admin_notified')->default(false);
+            $table->boolean('newsletter_subscription')->default(false);
             $table->timestamps();
         });
 

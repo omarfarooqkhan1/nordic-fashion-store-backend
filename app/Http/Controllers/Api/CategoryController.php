@@ -14,12 +14,12 @@ class CategoryController extends Controller
         return CategoryResource::collection(Category::all());
     }
 
-    public function show(Category $category)
+public function show(Category $category)
     {
         return new CategoryResource($category);
     }
 
-    public function store(Request $request)
+public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
@@ -31,7 +31,7 @@ class CategoryController extends Controller
         return new CategoryResource($category);
     }
 
-    public function update(Request $request, Category $category)
+public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
@@ -43,10 +43,9 @@ class CategoryController extends Controller
         return new CategoryResource($category);
     }
 
-    public function destroy(Category $category)
+public function destroy(Category $category)
     {
         $category->delete();
-
-        return response()->json(['message' => 'Category deleted successfully.']);
+return response()->json(['message' => 'Category deleted successfully.']);
     }
 }

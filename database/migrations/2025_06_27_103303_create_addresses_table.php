@@ -14,18 +14,20 @@ return new class extends Migration
         Schema::create('addresses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->enum('type', ['home', 'work', 'other'])->default('home');
-            $table->string('label');
+            $table->enum('type', ['home', 'work', 'shipping', 'billing', 'other'])->default('home');
+            $table->string('label')->nullable();
+            $table->string('name')->nullable();
             $table->string('street');
             $table->string('city');
-            $table->string('state');
+            $table->string('state')->nullable();
             $table->string('postal_code');
             $table->string('country');
+            $table->string('phone')->nullable();
             $table->boolean('is_default')->default(false);
             $table->timestamps();
 
-            // Ensure only one default address per user
-            $table->unique(['user_id', 'is_default'], 'unique_default_per_user');
+            // Index for better performance
+            $table->index(['user_id', 'is_default']);
         });
     }
 

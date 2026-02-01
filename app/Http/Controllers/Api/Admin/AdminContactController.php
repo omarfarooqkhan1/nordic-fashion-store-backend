@@ -81,8 +81,7 @@ class AdminContactController extends Controller
                     'updated_at' => $form->updated_at,
                 ];
             });
-
-            return response()->json([
+return response()->json([
                 'data' => $transformedForms,
                 'pagination' => [
                     'current_page' => $contactForms->currentPage(),
@@ -93,13 +92,7 @@ class AdminContactController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch contact forms', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch contact forms',
                 'error' => $e->getMessage()
             ], 500);
@@ -139,26 +132,12 @@ class AdminContactController extends Controller
                     'admin_notes' => $request->admin_notes,
                     'updated_at' => now(),
                 ]);
-
-            Log::info('Contact form status updated', [
-                'contact_form_id' => $id,
-                'status' => $request->status,
-                'admin_notes' => $request->admin_notes
-            ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Contact form updated successfully',
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to update contact form', [
-                'error' => $e->getMessage(),
-                'contact_form_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to update contact form',
                 'error' => $e->getMessage()
             ], 500);
@@ -180,25 +159,12 @@ class AdminContactController extends Controller
             }
 
             DB::table('contact_forms')->where('id', $id)->delete();
-
-            Log::info('Contact form deleted', [
-                'contact_form_id' => $id,
-                'email' => $contactForm->email
-            ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Contact form deleted successfully',
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to delete contact form', [
-                'error' => $e->getMessage(),
-                'contact_form_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to delete contact form',
                 'error' => $e->getMessage()
             ], 500);
@@ -241,26 +207,12 @@ class AdminContactController extends Controller
                     'admin_notes' => "Admin replied: " . $request->message,
                     'updated_at' => now(),
                 ]);
-
-            Log::info('Reply sent to contact form', [
-                'contact_form_id' => $id,
-                'customer_email' => $contactForm->email,
-                'reply_message' => $request->message
-            ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Reply sent successfully',
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to send reply', [
-                'error' => $e->getMessage(),
-                'contact_form_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to send reply',
                 'error' => $e->getMessage()
             ], 500);
@@ -280,21 +232,8 @@ class AdminContactController extends Controller
             ], function ($message) use ($contactForm, $replyMessage) {
                 $message->to($contactForm->email)
                         ->subject('Re: ' . $contactForm->subject)
-                        ->from(env('MAIL_FROM_ADDRESS', 'noreply@nordflex.shop'), env('MAIL_FROM_NAME', 'Nord Flex Support'));
-            });
-
-            Log::info('Reply email sent successfully', [
-                'contact_form_id' => $contactForm->id,
-                'customer_email' => $contactForm->email
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to send reply email', [
-                'error' => $e->getMessage(),
-                'contact_form_id' => $contactForm->id,
-                'customer_email' => $contactForm->email
-            ]);
-            throw $e;
+                        ->from(env('MAIL_FROM_ADDRESS', 'noreply@nordflex.store'), env('MAIL_FROM_NAME', 'Nord Flex Support'));
+            });} catch (\Exception $e) {throw $e;
         }
     }
     
@@ -330,15 +269,8 @@ class AdminContactController extends Controller
                     ->orderBy('month')
                     ->get(),
             ];
-
-            return response()->json($stats);
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch contact form statistics', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+return response()->json($stats);
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to fetch contact form statistics',
                 'error' => $e->getMessage()
             ], 500);
@@ -373,26 +305,13 @@ class AdminContactController extends Controller
                     'status' => $status,
                     'updated_at' => now(),
                 ]);
-
-            Log::info('Bulk updated contact forms', [
-                'contact_ids' => $contactIds,
-                'status' => $status,
-                'count' => count($contactIds)
-            ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Contact forms updated successfully',
                 'updated_count' => count($contactIds),
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to bulk update contact forms', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to bulk update contact forms',
                 'error' => $e->getMessage()
             ], 500);
@@ -422,25 +341,13 @@ class AdminContactController extends Controller
             DB::table('contact_forms')
                 ->whereIn('id', $contactIds)
                 ->delete();
-
-            Log::info('Bulk deleted contact forms', [
-                'contact_ids' => $contactIds,
-                'count' => count($contactIds)
-            ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Contact forms deleted successfully',
                 'deleted_count' => count($contactIds),
                 'success' => true
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to bulk delete contact forms', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to bulk delete contact forms',
                 'error' => $e->getMessage()
             ], 500);

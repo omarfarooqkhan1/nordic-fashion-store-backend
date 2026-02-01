@@ -157,7 +157,7 @@
             <p style="margin-top: 24px;">Thank you for shopping with us! We hope you enjoy your purchase.</p>
             <p style="color: #444; font-size: 0.98rem; margin-top: 16px;">
                 <strong>Need help?</strong> Contact our customer service team at 
-                <a href="mailto:support@nordflex.shop">support@nordflex.shop</a> 
+                <a href="mailto:support@nordflex.store">support@nordflex.store</a> 
                 or call us at +358 44 9782549.
             </p>
         </div>
@@ -166,7 +166,7 @@
             <p><strong>Nord Flex</strong></p>
             <p>Bringing you the finest Nordic-inspired fashion</p>
             <p>
-                <a href="mailto:support@nordflex.shop">support@nordflex.shop</a> | 
+                <a href="mailto:support@nordflex.store">support@nordflex.store</a> | 
                 <a href="tel:+4681234567">+358 44 9782549</a>
             </p>
             <p style="margin-top: 15px; font-size: 12px; color: #ccc;">

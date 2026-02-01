@@ -27,15 +27,7 @@ class VariantRepository
      */
     public function create(array $data): ProductVariant
     {
-        $variant = ProductVariant::create($data);
-
-        Log::info('Variant created successfully', [
-            'variant_id' => $variant->id,
-            'product_id' => $variant->product_id,
-            'sku' => $variant->sku
-        ]);
-
-        return $variant;
+        $variant = ProductVariant::create($data);return $variant;
     }
 
     /**
@@ -47,15 +39,7 @@ class VariantRepository
      */
     public function update(ProductVariant $variant, array $data): ProductVariant
     {
-        $variant->update($data);
-
-        Log::info('Variant updated successfully', [
-            'variant_id' => $variant->id,
-            'product_id' => $variant->product_id,
-            'sku' => $variant->sku
-        ]);
-
-        return $variant;
+        $variant->update($data);return $variant;
     }
 
     /**
@@ -66,15 +50,7 @@ class VariantRepository
      */
     public function delete(ProductVariant $variant): bool
     {
-        $result = $variant->delete();
-
-        Log::info('Variant deleted successfully', [
-            'variant_id' => $variant->id,
-            'product_id' => $variant->product_id,
-            'sku' => $variant->sku
-        ]);
-
-        return $result;
+        $result = $variant->delete();return $result;
     }
 
     /**

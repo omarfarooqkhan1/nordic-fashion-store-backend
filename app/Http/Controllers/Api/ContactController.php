@@ -49,15 +49,7 @@ class ContactController extends Controller
                 'updated_at' => now(),
             ]);
 
-            // Log the contact form submission
-            Log::info('Contact form submitted and stored', [
-                'email' => $contactData['email'],
-                'subject' => $contactData['subject'],
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent()
-            ]);
-
-            // Note: Emails are not sent automatically
+            // Log the contact form submission// Note: Emails are not sent automatically
             // Admin will reply to user later via email
             // User gets immediate feedback via frontend toast
 
@@ -66,13 +58,7 @@ class ContactController extends Controller
                 'success' => true
             ], 200);
 
-        } catch (\Exception $e) {
-            Log::error('Contact form submission failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Sorry, something went wrong. Please try again later.',
                 'success' => false
             ], 500);

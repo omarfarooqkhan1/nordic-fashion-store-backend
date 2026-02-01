@@ -23,7 +23,7 @@ class HeroImage extends Model
         return $query->where('is_active', true);
     }
 
-    public function scopeOrdered($query)
+public function scopeOrdered($query)
     {
         return $query->orderBy('sort_order')->orderBy('created_at', 'desc');
     }

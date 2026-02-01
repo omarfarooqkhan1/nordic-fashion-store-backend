@@ -15,15 +15,15 @@
                 <td style="padding: 8px; border-bottom: 1px solid #e9ecef;">{{ $item->product_name }}</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e9ecef;">{{ $item->variant_name }}</td>
                 <td align="center" style="padding: 8px; border-bottom: 1px solid #e9ecef;">{{ $item->quantity }}</td>
-                <td align="right" style="padding: 8px; border-bottom: 1px solid #e9ecef;">€{{ number_format($item->subtotal, 2) }}</td>
+                <td align="right" style="padding: 8px; border-bottom: 1px solid #e9ecef;">{{ $order->getCurrencySymbol() }}{{ number_format($item->subtotal, 2) }}</td>
             </tr>
             @endforeach
         </tbody>
     </table>
     <div style="margin-top: 15px;">
-        <strong>Subtotal:</strong> €{{ number_format($order->subtotal, 2) }}<br>
-        <strong>Shipping:</strong> €{{ number_format($order->shipping, 2) }}<br>
-        <strong>Tax (VAT 25%):</strong> €{{ number_format($order->tax, 2) }}<br>
-        <strong>Total:</strong> €{{ number_format($order->total, 2) }}
+        <strong>Subtotal:</strong> {{ $order->getCurrencySymbol() }}{{ number_format($order->subtotal, 2) }}<br>
+        <strong>Shipping:</strong> {{ $order->getCurrencySymbol() }}{{ number_format($order->shipping, 2) }}<br>
+        <strong>Tax (VAT 25%):</strong> {{ $order->getCurrencySymbol() }}{{ number_format($order->tax, 2) }}<br>
+        <strong>Total:</strong> {{ $order->getCurrencySymbol() }}{{ number_format($order->total, 2) }}
     </div>
 </div>

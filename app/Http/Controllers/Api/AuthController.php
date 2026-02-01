@@ -35,10 +35,9 @@ class AuthController extends Controller
         try {
             Mail::to($user->email)->send(new EmailVerificationCode($code));
         } catch (\Exception $e) {
-            \Log::error('Failed to send password reset code', ['error' => $e->getMessage()]);
+            // Email sending failure shouldn't fail the request
         }
-
-        return response()->json(['message' => 'If the email exists, a reset code has been sent.'], 200);
+return response()->json(['message' => 'If the email exists, a reset code has been sent.'], 200);
     }
 
     /**
@@ -60,15 +59,68 @@ class AuthController extends Controller
         $user->password = $validated['password'];
         $user->password_reset_code = null;
         $user->save();
+return response()->json(['message' => 'Password reset successful']);
+    }
 
-        return response()->json(['message' => 'Password reset successful']);
+    /**
+     * Send password reset code to admin's email
+     */
+    public function sendAdminResetCode(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $validated['email'])
+                   ->where('role', 'admin')
+                   ->first();
+                   
+        if (!$user) {
+            // For security, do not reveal if admin exists
+            return response()->json(['message' => 'If the admin email exists, a reset code has been sent.'], 200);
+        }
+
+        $code = random_int(100000, 999999);
+        $user->password_reset_code = $code;
+        $user->save();
+
+        try {
+            Mail::to($user->email)->send(new EmailVerificationCode($code));
+        } catch (\Exception $e) {
+            // Email sending failure shouldn't fail the request
+        }
+return response()->json(['message' => 'If the admin email exists, a reset code has been sent.'], 200);
+    }
+
+    /**
+     * Reset admin password using code
+     */
+    public function resetAdminPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $user = User::where('email', $validated['email'])
+                   ->where('role', 'admin')
+                   ->first();
+                   
+        if (!$user || $user->password_reset_code !== $validated['code']) {
+            return response()->json(['message' => 'Invalid code or email'], 422);
+        }
+
+        $user->password = $validated['password'];
+        $user->password_reset_code = null;
+        $user->save();
+return response()->json(['message' => 'Admin password reset successful']);
     }
     /**
      * Register customer with password (traditional signup)
      */
     public function registerCustomer(Request $request)
     {
-        \Log::info('registerCustomer called', ['request' => $request->all()]);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -86,17 +138,13 @@ class AuthController extends Controller
             'email_verification_code' => $code,
             'email_verification_code_created_at' => now(),
         ]);
-        \Log::info('User created', ['user_id' => $user->id, 'email' => $user->email, 'code' => $code]);
-
         // Send code to email
         try {
-            \Mail::to($user->email)->send(new \App\Mail\EmailVerificationCode($code));
-            \Log::info('Verification email sent', ['user_id' => $user->id, 'email' => $user->email]);
+            Mail::to($user->email)->send(new \App\Mail\EmailVerificationCode($code));
         } catch (\Exception $e) {
-            \Log::error('Failed to send verification email', ['error' => $e->getMessage()]);
+            // Email sending failure shouldn't fail the registration
         }
-
-        return response()->json([
+return response()->json([
             'message' => 'Verification code sent to email',
             'user_id' => $user->id,
         ], 201);
@@ -136,9 +184,7 @@ class AuthController extends Controller
         $user->save();
 
         $token = $user->createToken('customer-token')->plainTextToken;
-
-
-        return response()->json([
+return response()->json([
             'message' => 'Email verified successfully',
             'user' => [
                 'id' => $user->id,
@@ -179,13 +225,10 @@ class AuthController extends Controller
         // Send code to email
         try {
             Mail::to($user->email)->send(new EmailVerificationCode($code));
-            \Log::info('Verification code resent', ['user_id' => $user->id, 'email' => $user->email]);
-        } catch (\Exception $e) {
-            \Log::error('Failed to resend verification email', ['error' => $e->getMessage()]);
+            } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to send verification code'], 500);
         }
-
-        return response()->json([
+return response()->json([
             'message' => 'Verification code resent to your email',
             'user_id' => $user->id,
         ]);
@@ -222,8 +265,7 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth0-customer-token')->plainTextToken;
-
-        return response()->json([
+return response()->json([
             'message' => 'Customer authentication successful via Auth0',
             'user' => [
                 'id' => $user->id,
@@ -281,8 +323,7 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('customer-session')->plainTextToken;
-
-        return response()->json([
+return response()->json([
             'message' => 'Customer login successful',
             'user' => [
                 'id' => $user->id,
@@ -315,8 +356,7 @@ class AuthController extends Controller
         ]);
 
         $token = $user->createToken('admin-token')->plainTextToken;
-
-        return response()->json([
+return response()->json([
             'message' => 'Admin registered successfully',
             'user' => [
                 'id' => $user->id,
@@ -354,8 +394,7 @@ class AuthController extends Controller
         $user->tokens()->delete();
 
         $token = $user->createToken('admin-session')->plainTextToken;
-
-        return response()->json([
+return response()->json([
             'message' => 'Admin login successful',
             'user' => [
                 'id' => $user->id,
@@ -403,8 +442,7 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('user-session')->plainTextToken;
-
-        return response()->json([
+return response()->json([
             'message' => 'Login successful',
             'user' => [
                 'id' => $user->id,
@@ -423,8 +461,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-
-        return response()->json([
+return response()->json([
             'message' => 'Logged out successfully'
         ]);
     }
@@ -435,8 +472,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
-        
-        return response()->json([
+return response()->json([
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -475,8 +511,7 @@ class AuthController extends Controller
         $user->update([
             'password' => $validated['password']
         ]);
-
-        return response()->json([
+return response()->json([
             'message' => 'Password changed successfully'
         ]);
     }
@@ -501,8 +536,7 @@ class AuthController extends Controller
         }
 
         $user->update($validated);
-
-        return response()->json([
+return response()->json([
             'message' => 'Profile updated successfully',
             'user' => [
                 'id' => $user->id,
@@ -531,8 +565,7 @@ class AuthController extends Controller
                 'exists' => false
             ], 404);
         }
-
-        return response()->json([
+return response()->json([
             'exists' => true,
             'role' => $user->role,
             'auth_type' => $user->isAuth0User() ? 'auth0' : 'password',

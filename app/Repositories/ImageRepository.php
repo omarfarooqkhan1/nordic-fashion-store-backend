@@ -27,14 +27,7 @@ class ImageRepository
      */
     public function create(array $data): Image
     {
-        $image = Image::create($data);
-
-        Log::info('Image created successfully', [
-            'image_id' => $image->id,
-            'url' => $image->url
-        ]);
-
-        return $image;
+        $image = Image::create($data);return $image;
     }
 
     /**
@@ -46,14 +39,7 @@ class ImageRepository
      */
     public function update(Image $image, array $data): Image
     {
-        $image->update($data);
-
-        Log::info('Image updated successfully', [
-            'image_id' => $image->id,
-            'url' => $image->url
-        ]);
-
-        return $image;
+        $image->update($data);return $image;
     }
 
     /**
@@ -64,14 +50,7 @@ class ImageRepository
      */
     public function delete(Image $image): bool
     {
-        $result = $image->delete();
-
-        Log::info('Image deleted successfully', [
-            'image_id' => $image->id,
-            'url' => $image->url
-        ]);
-
-        return $result;
+        $result = $image->delete();return $result;
     }
 
     /**

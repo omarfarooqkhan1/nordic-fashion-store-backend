@@ -11,11 +11,13 @@ class Address extends Model
         'user_id',
         'type',
         'label',
+        'name',
         'street',
         'city',
         'state',
         'postal_code',
         'country',
+        'phone',
         'is_default',
     ];
 

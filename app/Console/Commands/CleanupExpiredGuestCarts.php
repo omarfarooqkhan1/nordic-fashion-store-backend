@@ -68,14 +68,6 @@ class CleanupExpiredGuestCarts extends Command
         $this->info("Deleted {$deletedCount} expired guest carts");
         $this->info("Deleted {$deletedItemsCount} total cart items");
         
-        // Log the cleanup for monitoring
-        Log::info('Expired guest carts cleanup completed', [
-            'deleted_carts' => $deletedCount,
-            'deleted_items' => $deletedItemsCount,
-            'cutoff_date' => $cutoffDate->toISOString(),
-            'executed_at' => now()->toISOString()
-        ]);
-        
-        return 0;
+        // Log the cleanup for monitoringreturn 0;
     }
 }

@@ -11,7 +11,7 @@ class UpdateProductRequest extends FormRequest
         return $this->user() && $this->user()->role === 'admin';
     }
 
-    public function rules(): array
+public function rules(): array
     {
         $productId = $this->route('product')->id;
         

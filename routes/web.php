@@ -12,8 +12,7 @@ Route::get('/sanctum/csrf-cookie', function () {
         if (!session()->isStarted()) {
             session()->start();
         }
-        
-        return response()->json([
+return response()->json([
             'message' => 'CSRF cookie set', 
             'status' => 'success',
             'csrf_token' => csrf_token(),
@@ -53,20 +52,8 @@ Route::get('/storage/{path}', function ($path) {
     if (!file_exists($filePath)) {
         abort(404);
     }
-    
-    return response()->file($filePath);
+return response()->file($filePath);
 })->where('path', '.*');
-
-// Serve sample images for development/testing
-Route::get('/sample_images/{filename}', function ($filename) {
-    $path = storage_path('app/public/sample_images/' . $filename);
-    
-    if (!file_exists($path)) {
-        abort(404);
-    }
-    
-    return response()->file($path);
-})->where('filename', '.*');
 
 // Serve real product images
 Route::get('/images/{filename}', function ($filename) {
@@ -75,15 +62,8 @@ Route::get('/images/{filename}', function ($filename) {
     if (!file_exists($path)) {
         abort(404);
     }
-    
-    return response()->file($path);
+return response()->file($path);
 })->where('filename', '.*');
-
-// Include debug routes
-include __DIR__.'/debug.php';
-
-// Include cloudinary test routes (remove after testing)
-include __DIR__.'/test-cloudinary.php';
 
 // Serve React app for all other routes
 Route::get('/{any}', function () {

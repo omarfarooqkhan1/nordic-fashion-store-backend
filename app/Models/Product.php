@@ -18,11 +18,13 @@ class Product extends Model
         'size_guide_image',
         'gender',
         'category_id',
+        'price', // Add price field
         'discount', // Add discount field
     ];
 
     protected $casts = [
-        // JSON casting removed - using proper relationships now
+        'price' => 'decimal:2',
+        'discount' => 'decimal:2',
     ];
 
     // Relationship to Category

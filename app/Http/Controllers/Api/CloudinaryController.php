@@ -29,14 +29,8 @@ class CloudinaryController extends Controller
                     'message' => 'Failed to retrieve storage usage'
                 ], 500);
             }
-
-            return response()->json($usage);
-        } catch (\Exception $e) {
-            Log::error('Failed to get Cloudinary storage usage', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+return response()->json($usage);
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to retrieve storage usage'
             ], 500);
         }
@@ -54,17 +48,11 @@ class CloudinaryController extends Controller
         try {
             $days = $request->input('days', 30);
             $result = $this->cloudinaryService->cleanupOldImages($days);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Cleanup completed successfully',
                 'result' => $result
             ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to cleanup Cloudinary storage', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to cleanup storage'
             ], 500);
         }

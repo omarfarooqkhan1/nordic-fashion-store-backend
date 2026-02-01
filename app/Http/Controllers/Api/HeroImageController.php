@@ -15,9 +15,8 @@ class HeroImageController extends Controller
      */
     public function index()
     {
-        \Illuminate\Support\Facades\Log::info('HeroImageController@index called');
         $heroImages = HeroImage::active()->ordered()->get();
-        return response()->json($heroImages);
+return response()->json($heroImages);
     }
 
 
@@ -29,8 +28,6 @@ class HeroImageController extends Controller
         try {
             // Check if we have a file upload
             if ($request->hasFile('image')) {
-                \Illuminate\Support\Facades\Log::info('Processing file upload');
-                
                 $request->validate([
                     'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:20480', // 20MB
                     'alt_text' => 'nullable|string|max:255',
@@ -40,12 +37,6 @@ class HeroImageController extends Controller
 
                 // Handle file upload
                 $file = $request->file('image');
-                \Illuminate\Support\Facades\Log::info('File details', [
-                    'original_name' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
-                    'extension' => $file->getClientOriginalExtension()
-                ]);
 
                 // Use LocalImageService for upload
                 $localImageService = app(\App\Services\LocalImageService::class);
@@ -58,28 +49,16 @@ class HeroImageController extends Controller
                         'sort_order' => $request->sort_order ?? 0,
                         'is_active' => $request->is_active ?? true,
                     ]);
-
-                    \Illuminate\Support\Facades\Log::info('Hero image created successfully', [
-                        'hero_image_id' => $heroImage->id,
-                        'image_url' => $heroImage->image_url,
-                        'local_path' => $result['public_id'],
-                        'compression_ratio' => $result['compression_ratio'] . '%'
-                    ]);
                 } else {
                     throw new \Exception('Failed to upload image to local storage');
                 }
-
-                return response()->json([
+return response()->json([
                     'success' => true,
                     'data' => $heroImage,
                     'message' => 'Hero image created successfully'
                 ], 201);
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Hero image creation failed: ' . $e->getMessage(), [
-                'exception' => $e,
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json([
                 'message' => 'Failed to create hero image: ' . $e->getMessage()
             ], 500);
@@ -91,9 +70,6 @@ class HeroImageController extends Controller
      */
     public function show(HeroImage $heroImage)
     {
-        \Illuminate\Support\Facades\Log::info('HeroImageController@show called', [
-            'hero_image_id' => $heroImage->id
-        ]);
         return response()->json($heroImage);
     }
 
@@ -102,11 +78,6 @@ class HeroImageController extends Controller
      */
     public function update(Request $request, HeroImage $heroImage)
     {
-        \Illuminate\Support\Facades\Log::info('HeroImageController@update called', [
-            'hero_image_id' => $heroImage->id,
-            'input_data' => $request->all()
-        ]);
-
         $validator = Validator::make($request->all(), [
             'image_url' => 'sometimes|required|string',
             'alt_text' => 'nullable|string|max:255',
@@ -115,11 +86,6 @@ class HeroImageController extends Controller
         ]);
 
         if ($validator->fails()) {
-            \Illuminate\Support\Facades\Log::error('Hero image update validation failed', [
-                'hero_image_id' => $heroImage->id,
-                'errors' => $validator->errors()->toArray()
-            ]);
-            
             return response()->json([
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
@@ -127,12 +93,7 @@ class HeroImageController extends Controller
         }
 
         $heroImage->update($request->all());
-        
-        \Illuminate\Support\Facades\Log::info('Hero image updated successfully', [
-            'hero_image_id' => $heroImage->id
-        ]);
-        
-        return response()->json($heroImage);
+return response()->json($heroImage);
     }
 
     /**
@@ -140,12 +101,8 @@ class HeroImageController extends Controller
      */
     public function destroy(HeroImage $heroImage)
     {
-        \Illuminate\Support\Facades\Log::info('HeroImageController@destroy called', [
-            'hero_image_id' => $heroImage->id
-        ]);
-        
         $heroImage->delete();
-        return response()->json(['message' => 'Hero image deleted successfully']);
+return response()->json(['message' => 'Hero image deleted successfully']);
     }
 
     /**
@@ -153,9 +110,8 @@ class HeroImageController extends Controller
      */
     public function adminIndex()
     {
-        \Illuminate\Support\Facades\Log::info('HeroImageController@adminIndex called');
         $heroImages = HeroImage::ordered()->get();
-        return response()->json($heroImages);
+return response()->json($heroImages);
     }
 
     /**
@@ -163,10 +119,6 @@ class HeroImageController extends Controller
      */
     public function reorder(Request $request)
     {
-        \Illuminate\Support\Facades\Log::info('HeroImageController@reorder called', [
-            'input_data' => $request->all()
-        ]);
-
         $validator = Validator::make($request->all(), [
             'images' => 'required|array',
             'images.*.id' => 'required|integer|exists:hero_images,id',
@@ -174,10 +126,6 @@ class HeroImageController extends Controller
         ]);
 
         if ($validator->fails()) {
-            \Illuminate\Support\Facades\Log::error('Hero image reorder validation failed', [
-                'errors' => $validator->errors()->toArray()
-            ]);
-            
             return response()->json([
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
@@ -188,7 +136,6 @@ class HeroImageController extends Controller
             HeroImage::where('id', $imageData['id'])->update(['sort_order' => $imageData['sort_order']]);
         }
 
-        \Illuminate\Support\Facades\Log::info('Hero images reordered successfully');
         return response()->json(['message' => 'Hero images reordered successfully']);
     }
 }

@@ -17,7 +17,7 @@ class EmailVerificationCode extends Mailable
         $this->code = $code;
     }
 
-    public function build()
+public function build()
     {
         return $this->subject('Your Email Verification Code')
             ->view('emails.verify_code')

@@ -19,20 +19,11 @@ class ProductReviewController extends Controller
     public function pendingReviews(): JsonResponse
     {
         $user = Auth::guard('sanctum')->user();
-        \Log::info('pendingReviews - Auth user', [
-            'user_id' => $user?->id,
-            'is_admin' => $user?->is_admin,
-            'user' => $user,
-        ]);
         if (!$user || !$user->isAdmin()) {
-            \Log::warning('pendingReviews - Unauthorized access', [
-                'user_id' => $user?->id,
-                'role' => $user?->role,
-            ]);
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $pending = ProductReview::where('status', 'pending')->with('user:id,name')->orderBy('created_at', 'desc')->get();
-        return response()->json([
+return response()->json([
             'success' => true,
             'data' => $pending
         ]);
@@ -45,7 +36,6 @@ class ProductReviewController extends Controller
         $product = Product::findOrFail($productId);
 
         $user = Auth::guard('sanctum')->user();
-        \Log::info('ProductReviewController@index - Auth user', ['user' => $user]);
         // Pagination parameters
         $perPage = $request->get('per_page', 10);
         $page = $request->get('page', 1);
@@ -62,16 +52,13 @@ class ProductReviewController extends Controller
             ->with('user:id,name')
             ->orderBy('created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
-        \Log::info('ProductReviewController@index - Reviews count', ['count' => $reviews->count(), 'review_ids' => $reviews->pluck('id')]);
-
         // Ensure media is always an array for each review
         $reviews->getCollection()->transform(function ($review) {
             $arr = $review->toArray();
             $arr['media'] = $arr['media'] ?? [];
             return $arr;
         });
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'data' => $reviews->items(),
             'pagination' => [
@@ -139,12 +126,6 @@ class ProductReviewController extends Controller
         } elseif (is_array($mediaFiles)) {
             $fileCount = count($mediaFiles);
         }
-        \Log::info('Review media files received (store)', [
-            'has_file' => $request->hasFile('media'),
-            'file_count' => $fileCount,
-            'all_files' => $request->allFiles()
-        ]);
-
         $mediaUrls = [];
         if ($request->hasFile('media') && is_array($mediaFiles)) {
             $localImageService = app(LocalImageService::class);
@@ -177,8 +158,7 @@ class ProductReviewController extends Controller
         ]);
 
         $review->load('user:id,name');
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Review submitted successfully',
             'data' => $review
@@ -189,15 +169,7 @@ class ProductReviewController extends Controller
      * Update an existing review
      */
     public function update(Request $request, int $productId, int $reviewId): JsonResponse
-    {
-        // Debug: Log all files received in the request
-        \Log::info('ProductReviewController@update - allFiles', [
-            'all_files' => $request->allFiles(),
-            'has_file' => $request->hasFile('media'),
-            'media_files' => $request->file('media'),
-        ]);
-
-        // Robust: Enforce max 5 media (existing + new), prevent duplicates
+    {        // Robust: Enforce max 5 media (existing + new), prevent duplicates
         $existingMedia = $request->has('existing_media') ? json_decode($request->input('existing_media'), true) : [];
         if (!is_array($existingMedia)) $existingMedia = [];
         $existingMedia = array_values(array_filter($existingMedia, function($item) {
@@ -276,8 +248,7 @@ class ProductReviewController extends Controller
             foreach ($newFiles as $file) {
                 // Robust: skip invalid or unreadable files
                 if (!$file instanceof \Illuminate\Http\UploadedFile || !$file->isValid() || !$file->getRealPath()) {
-                    \Log::warning('Skipping invalid file in review update', ['file' => $file]);
-                    continue;
+                    \continue;
                 }
                 $filename = 'review_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $resourceType = str_starts_with($file->getMimeType(), 'video') ? 'video' : 'image';
@@ -307,8 +278,7 @@ class ProductReviewController extends Controller
         ));
 
         $review->load('user:id,name');
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Review updated successfully',
             'data' => $review
@@ -333,19 +303,14 @@ class ProductReviewController extends Controller
         // Send email notification to the reviewer
         if ($review->user && $review->user->email) {
             try {
-                \Mail::to($review->user->email)->send(new \App\Mail\ReviewApproved($review));
+                Mail::to($review->user->email)->send(new \App\Mail\ReviewApproved($review));
             } catch (\Exception $e) {
-                \Log::error('Failed to send review approval email', [
-                    'review_id' => $review->id,
-                    'user_id' => $review->user->id ?? null,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+                }
         }
 
         // Return updated pending reviews
         $pending = ProductReview::where('status', 'pending')->with('user:id,name')->orderBy('created_at', 'desc')->get();
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Review approved',
             'pending_reviews' => $pending
@@ -370,7 +335,7 @@ class ProductReviewController extends Controller
 
         // Return updated pending reviews
         $pending = ProductReview::where('status', 'pending')->with('user:id,name')->orderBy('created_at', 'desc')->get();
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Review rejected',
             'pending_reviews' => $pending
@@ -400,8 +365,7 @@ class ProductReviewController extends Controller
         }
 
         $review->delete();
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Review deleted successfully'
         ]);
@@ -447,7 +411,7 @@ class ProductReviewController extends Controller
             ]
         ];
 
-        // Add additional context for debugging
+        // Add additional context for error handling
         if (!$verificationInfo['has_purchased']) {
             $response['data']['message'] = 'You need to purchase this product before reviewing it.';
         } elseif (!$verificationInfo['has_delivered']) {
@@ -455,8 +419,7 @@ class ProductReviewController extends Controller
         } elseif ($verificationInfo['has_reviewed']) {
             $response['data']['message'] = 'You have already reviewed this product.';
         }
-
-        return response()->json($response);
+return response()->json($response);
     }
 
     /**
@@ -486,10 +449,6 @@ class ProductReviewController extends Controller
             
             return null;
         } catch (\Exception $e) {
-            \Log::warning('Failed to extract local path from URL', [
-                'url' => $url,
-                'error' => $e->getMessage()
-            ]);
             return null;
         }
     }

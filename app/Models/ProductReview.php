@@ -47,7 +47,6 @@ class ProductReview extends Model
      */
     public static function getPurchaseVerificationInfo(int $userId, int $productId): array
     {
-        // Log all matching orders for this user/product for debugging
         $allOrders = \DB::table('order_items')
             ->join('product_variants', 'order_items.product_variant_id', '=', 'product_variants.id')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')

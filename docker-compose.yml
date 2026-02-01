@@ -1,0 +1,41 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: nordflex_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: u672825292_nordflex
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_USER: u672825292_admin
+      MYSQL_PASSWORD: EftRQgW~2
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - nordflex_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: nordflex_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI port
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      MP_SMTP_TLS_CERT: ""
+      MP_SMTP_TLS_KEY: ""
+    networks:
+      - nordflex_network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  nordflex_network:
+    driver: bridge

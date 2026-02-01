@@ -24,18 +24,12 @@ class LocalStorageController extends Controller
     {
         try {
             $usage = $this->localImageService->getStorageUsage();
-            
-            return response()->json([
+return response()->json([
                 'success' => true,
                 'data' => $usage
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to get storage usage', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'success' => false,
                 'message' => 'Failed to get storage usage: ' . $e->getMessage()
             ], 500);
@@ -58,21 +52,13 @@ class LocalStorageController extends Controller
             }
 
             $result = $this->localImageService->cleanupOldImages($daysOld);
-            
-            Log::info('Storage cleanup completed', $result);
-
-            return response()->json([
+return response()->json([
                 'success' => true,
                 'message' => 'Cleanup completed successfully',
                 'data' => $result
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to cleanup storage', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'success' => false,
                 'message' => 'Failed to cleanup storage: ' . $e->getMessage()
             ], 500);
@@ -104,13 +90,7 @@ class LocalStorageController extends Controller
                 ], 500);
             }
 
-        } catch (\Exception $e) {
-            Log::error('Failed to delete image', [
-                'image_path' => $request->input('image_path'),
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete image: ' . $e->getMessage()
             ], 500);
@@ -132,8 +112,7 @@ class LocalStorageController extends Controller
             $transformations = $request->input('transformations', []);
             
             $optimizedUrl = $this->localImageService->getOptimizedUrl($imagePath, $transformations);
-            
-            return response()->json([
+return response()->json([
                 'success' => true,
                 'data' => [
                     'original_path' => $imagePath,
@@ -141,13 +120,7 @@ class LocalStorageController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to get optimized URL', [
-                'image_path' => $request->input('image_path'),
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'success' => false,
                 'message' => 'Failed to get optimized URL: ' . $e->getMessage()
             ], 500);

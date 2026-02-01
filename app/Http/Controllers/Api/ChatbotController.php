@@ -22,7 +22,7 @@ class ChatbotController extends Controller
         $this->knowledgeBaseService = $knowledgeBaseService;
     }
 
-    public function chat(Request $request)
+public function chat(Request $request)
     {
         $prompt = $request->input('prompt');
         
@@ -83,20 +83,15 @@ class ChatbotController extends Controller
 
             // Cache the response for 1 hour
             Cache::put($cacheKey, $responseText, 3600);
-
-            return response()->json([
+return response()->json([
                 'success' => true,
                 'response' => $responseText,
                 'timestamp' => now()->toISOString(),
                 'cached' => false
             ]);
-        } catch (\Exception $e) {
-            Log::error('Chatbot error: ' . $e->getMessage());
-            
-            // Fallback response
-            $fallbackResponse = "I apologize, but I'm currently experiencing technical difficulties. Please try again later or contact our support team at support@nordflex.shop for immediate assistance.";
-            
-            return response()->json([
+        } catch (\Exception $e) {// Fallback response
+            $fallbackResponse = "I apologize, but I'm currently experiencing technical difficulties. Please try again later or contact our support team at support@nordflex.store for immediate assistance.";
+return response()->json([
                 'success' => true,
                 'response' => $fallbackResponse,
                 'timestamp' => now()->toISOString(),

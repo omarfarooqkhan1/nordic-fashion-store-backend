@@ -15,34 +15,34 @@ class FaqController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+public function store(Request $request)
     {
         $faq = Faq::create($request->validate([
             'question' => 'required|string',
             'answer' => 'required|string',
             'order' => 'integer',
         ]));
-        return response()->json([
+return response()->json([
             'data' => $faq
         ], 201);
     }
 
-    public function update(Request $request, Faq $faq)
+public function update(Request $request, Faq $faq)
     {
         $faq->update($request->validate([
             'question' => 'sometimes|required|string',
             'answer' => 'sometimes|required|string',
             'order' => 'integer',
         ]));
-        return response()->json([
+return response()->json([
             'data' => $faq
         ]);
     }
 
-    public function destroy(Faq $faq)
+public function destroy(Faq $faq)
     {
         $faq->delete();
-        return response()->json([
+return response()->json([
             'message' => 'FAQ deleted successfully'
         ]);
     }

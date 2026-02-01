@@ -49,14 +49,11 @@ class VectorStoreService
             
             // Check if our collection already exists
             foreach ($collections as $collection) {
-                if ($collection['name'] === $this->collectionName) {
-                    Log::info('Found existing collection: ' . $this->collectionName);
-                    return $collection['id'];
+                if ($collection['name'] === $this->collectionName) {return $collection['id'];
                 }
             }
             
             // Collection doesn't exist, create it
-            Log::info('Creating new ChromaDB collection: ' . $this->collectionName);
             $createResponse = $this->client->collections()->create(
                 name: $this->collectionName,
                 getOrCreate: true
@@ -64,9 +61,7 @@ class VectorStoreService
             
             $createdCollection = $createResponse->json();
             return $createdCollection['id'];
-        } catch (\Exception $e) {
-            Log::error('Failed to get or create collection: ' . $e->getMessage());
-            throw $e;
+        } catch (\Exception $e) {throw $e;
         }
     }
 
@@ -76,10 +71,7 @@ class VectorStoreService
      * @return void
      */
     public function initializeKnowledgeBase()
-    {
-        Log::info('Initializing knowledge base');
-        
-        // Clear existing collection
+    {// Clear existing collection
         try {
             $this->client->collections()->delete($this->collectionId);
             $this->client->collections()->create(
@@ -88,9 +80,7 @@ class VectorStoreService
             );
             // Re-get the collection ID after recreation
             $this->collectionId = $this->getOrCreateCollection();
-        } catch (\Exception $e) {
-            Log::warning('Failed to clear collection: ' . $e->getMessage());
-        }
+        } catch (\Exception $e) {}
         
         // Add FAQ data
         try {
@@ -113,9 +103,7 @@ class VectorStoreService
                     $this->addDocument($content, $metadata, "faq_{$faq['id']}");
                 }
             }
-        } catch (\Exception $e) {
-            Log::warning('Failed to fetch FAQs for vector store: ' . $e->getMessage());
-        }
+        } catch (\Exception $e) {}
         
         // Add blog data
         try {
@@ -139,9 +127,7 @@ class VectorStoreService
                     $this->addDocument($content, $metadata, "blog_{$blog['id']}");
                 }
             }
-        } catch (\Exception $e) {
-            Log::warning('Failed to fetch blogs for vector store: ' . $e->getMessage());
-        }
+        } catch (\Exception $e) {}
         
         // Add about information
         $aboutContent = "Nord Flex is a premium apparel brand inspired by Viking resilience and craftsmanship. We specialize in rugged, high-performance leatherwear designed for modern warriors—whether you're conquering the outdoors or the urban grind. Our products feature Viking-inspired design with bold, minimalist aesthetics, premium materials like full-grain leather and reinforced stitching, built for durability, comfort, and timeless style, and ethically sourced and crafted with attention to detail.";
@@ -153,7 +139,7 @@ class VectorStoreService
         $this->addDocument($aboutContent, $aboutMetadata, 'about_company');
         
         // Add contact information
-        $contactContent = "You can reach us via email at support@nordflex.shop or by phone at +358 44 9782549. Our address is Nord Flex Co., Yliopistonkatu 25, 20100 Turku, Finland.";
+        $contactContent = "You can reach us via email at support@nordflex.store or by phone at +358 44 9782549. Our address is Nord Flex Co., Yliopistonkatu 25, 20100 , Finland.";
         $contactMetadata = [
             'type' => 'contact',
             'title' => 'Contact Information'
@@ -166,7 +152,7 @@ class VectorStoreService
 
 Definitions:
 - 'Company,' 'we,' 'us,' or 'our' refers to NordFlex Co.
-- 'Website' refers to nordflex.shop and all associated pages
+- 'Website' refers to nordflex.store and all associated pages
 - 'Products' refers to leather goods, jackets, bags, wallets, and belts sold by NordFlex
 - 'Services' refers to all services provided by NordFlex
 - 'User,' 'you,' or 'your' refers to any person accessing or using our website or services
@@ -241,9 +227,9 @@ These terms are governed by and construed in accordance with the laws of Finland
 
 Contact Information:
 If you have questions about these Terms and Conditions, please contact us at:
-- Email: support@nordflex.shop
+- Email: support@nordflex.store
 - Phone: +358 44 9782549
-- Address: NordFlex Co., Yliopistonkatu 25, 20100 Turku, Finland";
+- Address: NordFlex Co., Yliopistonkatu 25, 20100 , Finland";
         
         $termsMetadata = [
             'type' => 'terms',
@@ -253,7 +239,7 @@ If you have questions about these Terms and Conditions, please contact us at:
         $this->addDocument($termsContent, $termsMetadata, 'terms_conditions');
         
         // Add privacy policy
-        $privacyContent = "NordFlex Co. ('we,' 'our,' or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website nordflex.shop or use our services. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.
+        $privacyContent = "NordFlex Co. ('we,' 'our,' or 'us') is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website nordflex.store or use our services. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the site.
 
 Information We Collect:
 We may collect information about you in a variety of ways. The information we may collect via the Site includes:
@@ -326,19 +312,16 @@ We may update this Privacy Policy from time to time. We will notify you of any c
 
 Contact Us:
 If you have questions or comments about this Privacy Policy, please contact us at:
-- Email: support@nordflex.shop
+- Email: support@nordflex.store
 - Phone: +358 44 9782549
-- Address: NordFlex Co., Yliopistonkatu 25, 20100 Turku, Finland";
+- Address: NordFlex Co., Yliopistonkatu 25, 20100 , Finland";
         
         $privacyMetadata = [
             'type' => 'privacy',
             'title' => 'Privacy Policy'
         ];
         
-        $this->addDocument($privacyContent, $privacyMetadata, 'privacy_policy');
-        
-        Log::info('Knowledge base initialization completed');
-    }
+        $this->addDocument($privacyContent, $privacyMetadata, 'privacy_policy');}
 
     /**
      * Add a document to the vector store
@@ -354,12 +337,7 @@ If you have questions or comments about this Privacy Policy, please contact us a
         $retryDelay = 5; // seconds
         
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                Log::info('Adding document (attempt ' . $attempt . '): ' . $id);
-                Log::info('Content: ' . substr($content, 0, 100) . '...');
-                Log::info('Metadata: ' . json_encode($metadata));
-                
-                // Generate embeddings using our custom Gemini embedding function
+            try {// Generate embeddings using our custom Gemini embedding function
                 $embeddings = $this->embeddingFunction->generate([$content]);
                 
                 // Add document with generated embeddings
@@ -369,26 +347,16 @@ If you have questions or comments about this Privacy Policy, please contact us a
                     embeddings: $embeddings,
                     metadatas: [$metadata],
                     documents: [$content]
-                );
-                
-                Log::info('Add response: ' . json_encode($response->json()));
-                return; // Success, exit the retry loop
-            } catch (\Exception $e) {
-                Log::error('Failed to add document to vector store (attempt ' . $attempt . '): ' . $e->getMessage());
-                
-                // Check if it's a rate limit error and we have more retries
+                );return; // Success, exit the retry loop
+            } catch (\Exception $e) {// Check if it's a rate limit error and we have more retries
                 if (strpos($e->getMessage(), 'quota') !== false || strpos($e->getMessage(), 'rate') !== false) {
-                    if ($attempt < $maxRetries) {
-                        Log::info('Rate limit hit, waiting ' . $retryDelay . ' seconds before retry...');
-                        sleep($retryDelay);
+                    if ($attempt < $maxRetries) {sleep($retryDelay);
                         $retryDelay *= 2; // Exponential backoff
                         continue;
                     }
                 }
                 
-                // For non-rate limit errors or final attempt, log the full trace and re-throw
-                Log::error('Trace: ' . $e->getTraceAsString());
-                throw $e;
+                // For non-rate limit errors or final attempt, log the full trace and re-throwthrow $e;
             }
         }
     }
@@ -402,10 +370,7 @@ If you have questions or comments about this Privacy Policy, please contact us a
      */
     public function search(string $query, int $limit = 5): array
     {
-        try {
-            Log::info('Searching for: ' . $query);
-            
-            // Generate embedding for the query text using our custom embedding function
+        try {// Generate embedding for the query text using our custom embedding function
             $queryEmbeddings = $this->embeddingFunction->generate([$query]);
             
             // Use the regular query method with a default include parameter
@@ -416,10 +381,7 @@ If you have questions or comments about this Privacy Policy, please contact us a
                 include: ['documents', 'metadatas', 'distances'] // Specify what to include explicitly
             );
             
-            $result = $response->json();
-            Log::info('Search response: ' . json_encode($result));
-            
-            $documents = [];
+            $result = $response->json();$documents = [];
             if (isset($result['documents'][0])) {
                 for ($i = 0; $i < count($result['documents'][0]); $i++) {
                     $documents[] = [
@@ -431,9 +393,7 @@ If you have questions or comments about this Privacy Policy, please contact us a
             }
             
             return $documents;
-        } catch (\Exception $e) {
-            Log::warning('Failed to search vector store: ' . $e->getMessage());
-            return [];
+        } catch (\Exception $e) { return [];
         }
     }
 

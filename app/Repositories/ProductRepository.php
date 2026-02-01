@@ -77,14 +77,7 @@ class ProductRepository
      */
     public function create(array $data): Product
     {
-        $product = Product::create($data);
-
-        Log::info('Product created successfully', [
-            'product_id' => $product->id,
-            'name' => $product->name
-        ]);
-
-        return $product;
+        $product = Product::create($data);return $product;
     }
 
     /**
@@ -96,14 +89,7 @@ class ProductRepository
      */
     public function update(Product $product, array $data): Product
     {
-        $product->update($data);
-
-        Log::info('Product updated successfully', [
-            'product_id' => $product->id,
-            'name' => $product->name
-        ]);
-
-        return $product;
+        $product->update($data);return $product;
     }
 
     /**
@@ -114,14 +100,7 @@ class ProductRepository
      */
     public function delete(Product $product): bool
     {
-        $result = $product->delete();
-
-        Log::info('Product deleted successfully', [
-            'product_id' => $product->id,
-            'name' => $product->name
-        ]);
-
-        return $result;
+        $result = $product->delete();return $result;
     }
 
     /**

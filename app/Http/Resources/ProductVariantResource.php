@@ -15,13 +15,6 @@ class ProductVariantResource extends JsonResource
     public function toArray(Request $request): array
     {
         $images = $this->whenLoaded('images');
-        // Debug: Log variant ID and images count to laravel.log
-        \Log::debug('[ProductVariantResource] Variant ID: ' . $this->id . ', images loaded: ' . (is_a($images, 'Illuminate\\Support\\Collection') ? $images->count() : 'not loaded'));
-        if (is_a($images, 'Illuminate\\Support\\Collection')) {
-            foreach ($images as $img) {
-                \Log::debug('[ProductVariantResource] Image: id=' . $img->id . ', type=' . $img->image_type . ', url=' . $img->url . ', is_mobile=' . ($img->is_mobile ? '1' : '0'));
-            }
-        }
         $mainImages = (is_a($images, 'Illuminate\\Support\\Collection'))
             ? $images->where('image_type', 'main')->values()
             : collect();

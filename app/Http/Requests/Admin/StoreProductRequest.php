@@ -11,7 +11,7 @@ class StoreProductRequest extends FormRequest
         return $this->user() && $this->user()->role === 'admin';
     }
 
-    public function rules(): array
+public function rules(): array
     {
         return [
             'name' => 'required|string|max:255|unique:products,name',
@@ -31,7 +31,7 @@ class StoreProductRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
+public function messages(): array
     {
         return [
             'name.unique' => 'A product with this name already exists.',

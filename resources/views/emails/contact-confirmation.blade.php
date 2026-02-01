@@ -80,7 +80,7 @@
         <div class="contact-info">
             <h3>📞 Need Immediate Assistance?</h3>
             <p><strong>Phone:</strong> +358 2 123 456 789</p>
-            <p><strong>Email:</strong> support@nordflex.shop</p>
+            <p><strong>Email:</strong> support@nordflex.store</p>
             <p><strong>Business Hours:</strong> Monday - Friday, 9:00 AM - 6:00 PM (EET)</p>
         </div>
 

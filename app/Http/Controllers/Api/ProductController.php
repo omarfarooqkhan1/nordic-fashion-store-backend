@@ -36,17 +36,28 @@ class ProductController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        // Filter by price range
+        // Filter by price range (using variant prices)
         if ($request->has('min_price') && $request->min_price) {
-            $query->where('price', '>=', $request->min_price);
+            $query->whereHas('variants', function($q) use ($request) {
+                $q->where('price', '>=', $request->min_price);
+            });
         }
         if ($request->has('max_price') && $request->max_price) {
-            $query->where('price', '<=', $request->max_price);
+            $query->whereHas('variants', function($q) use ($request) {
+                $q->where('price', '<=', $request->max_price);
+            });
         }
 
-        // Filter by gender
+        // Filter by gender (include unisex products for male/female filters)
         if ($request->has('gender') && $request->gender) {
-            $query->where('gender', $request->gender);
+            $gender = $request->gender;
+            if ($gender === 'male' || $gender === 'female') {
+                // Include both the selected gender and unisex products
+                $query->whereIn('gender', [$gender, 'unisex']);
+            } else {
+                // For 'unisex' filter, show only unisex products
+                $query->where('gender', $gender);
+            }
         }
 
         // Sorting
@@ -54,14 +65,23 @@ class ProductController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
         
         if (in_array($sortBy, ['name', 'price', 'created_at'])) {
-            $query->orderBy($sortBy, $sortOrder);
+            if ($sortBy === 'price') {
+                // Sort by minimum variant price using subquery
+                // Products without variants will have NULL min_price and appear at the end
+                $query->addSelect([
+                    'min_price' => \App\Models\ProductVariant::selectRaw('MIN(price)')
+                        ->whereColumn('product_variants.product_id', 'products.id')
+                ])
+                ->orderByRaw("min_price IS NULL, min_price {$sortOrder}");
+            } else {
+                $query->orderBy($sortBy, $sortOrder);
+            }
         }
 
         // Pagination
         $perPage = $request->get('per_page', 12);
         $products = $query->paginate($perPage);
-
-        return response()->json([
+return response()->json([
             'data' => new ProductCollection($products),
             'pagination' => [
                 'current_page' => $products->currentPage(),
@@ -73,7 +93,7 @@ class ProductController extends Controller
         ]);
     }
 
-    public function show(Product $product)
+public function show(Product $product)
     {
         // Support include parameter for loading specific relationships
         $includes = request()->input('include');
@@ -89,7 +109,7 @@ class ProductController extends Controller
         return new ProductResource($product);
     }
 
-    public function store(Request $request)
+public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:products,name',
@@ -120,7 +140,7 @@ class ProductController extends Controller
         return new ProductResource($product);
     }
 
-    public function update(Request $request, Product $product)
+public function update(Request $request, Product $product)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:products,name,' . $product->id,
@@ -135,11 +155,10 @@ class ProductController extends Controller
         return new ProductResource($product);
     }
 
-    public function destroy(Product $product)
+public function destroy(Product $product)
     {
         $product->delete();
-
-        return response()->json(['message' => 'Product deleted successfully.']);
+return response()->json(['message' => 'Product deleted successfully.']);
     }
 
     /**
@@ -157,15 +176,7 @@ class ProductController extends Controller
             $file = $request->file('upload_file');
             $updateExisting = filter_var($request->input('update_existing', false), FILTER_VALIDATE_BOOLEAN);
 
-            // Debug logging
-            Log::info('Bulk upload started', [
-                'filename' => $file->getClientOriginalName(),
-                'update_existing' => $updateExisting,
-                'file_size' => $file->getSize(),
-                'mime_type' => $file->getMimeType()
-            ]);
-
-            // Check if it's a ZIP file or CSV
+            // Debug logging// Check if it's a ZIP file or CSV
             $isZipFile = in_array($file->getMimeType(), ['application/zip', 'application/x-zip-compressed']);
 
             if ($isZipFile) {
@@ -175,13 +186,7 @@ class ProductController extends Controller
                 return $this->handleCsvUpload($file, $updateExisting);
             }
 
-        } catch (\Exception $e) {
-            Log::error('Bulk upload failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Upload failed: ' . $e->getMessage()
             ], 500);
         }
@@ -356,15 +361,11 @@ class ProductController extends Controller
 
                     if ($existingVariant) {
                         if ($updateExisting) {
-                            $existingVariant->update($variantData);
-                            Log::info("Updated variant: {$variantData['sku']} for product: {$product->name}");
-                        } else {
+                            $existingVariant->update($variantData);} else {
                             throw new \Exception("Variant with SKU '{$variantData['sku']}' already exists");
                         }
                     } else {
-                        ProductVariant::create($variantData);
-                        Log::info("Created variant: {$variantData['sku']} for product: {$product->name}");
-                    }
+                        ProductVariant::create($variantData);}
                 }
 
                 // Handle product images if provided (only process once per product)
@@ -373,10 +374,7 @@ class ProductController extends Controller
                     $processedProducts[$productName . '_images_processed'] = true;
                 }
 
-                $results['successful']++;
-                Log::info("Successfully processed row {$rowNumber}: {$productName}");
-
-            } catch (\Exception $e) {
+                $results['successful']++;} catch (\Exception $e) {
                 $results['failed']++;
                 $results['errors'][] = [
                     'row' => $rowNumber,
@@ -386,19 +384,10 @@ class ProductController extends Controller
             }
         }
 
-        DB::commit();
-
-        Log::info('Bulk upload completed', [
-            'unique_products' => count($processedProducts),
-            'total_rows_processed' => $results['successful'],
-            'failed_rows' => $results['failed']
-        ]);
-
-        $results['unique_products'] = count(array_filter($processedProducts, function($key) {
+        DB::commit();$results['unique_products'] = count(array_filter($processedProducts, function($key) {
             return !str_ends_with($key, '_images_processed');
         }, ARRAY_FILTER_USE_KEY));
-
-        return response()->json($results);
+return response()->json($results);
     }
 
     /**
@@ -411,14 +400,8 @@ class ProductController extends Controller
         // Check storage usage before uploading
         $storageUsage = $localImageService->getStorageUsage();
         if ($storageUsage && $storageUsage['total_size_gb'] > 5) { // 5GB limit for local storage
-            Log::warning('Local storage getting full', [
-                'total_size_gb' => $storageUsage['total_size_gb'],
-                'total_files' => $storageUsage['total_files']
-            ]);
-            
             // Attempt cleanup if storage is getting full
             $cleanupResult = $localImageService->cleanupOldImages(60); // Clean images older than 60 days
-            Log::info('Cleanup performed due to storage limit', $cleanupResult);
         }
         
         // Handle file-based images first
@@ -434,17 +417,8 @@ class ProductController extends Controller
                 
                 if ($result) {
                     $uploadedImageUrls[] = $result['secure_url'];
-                    Log::info('Image uploaded successfully', [
-                        'product' => $product->name,
-                        'original_file' => $rowData[$column],
-                        'local_path' => $result['public_id'],
-                        'compression_ratio' => $result['compression_ratio'] . '%'
-                    ]);
                 } else {
-                    Log::error('Failed to upload image', [
-                        'product' => $product->name,
-                        'file' => $rowData[$column]
-                    ]);
+                    // Handle upload failure silently
                 }
             }
         }
@@ -594,8 +568,7 @@ class ProductController extends Controller
         foreach ($sampleData as $row) {
             $csvContent .= '"' . implode('","', $row) . '"' . "\n";
         }
-
-        return response($csvContent)
+return response($csvContent)
             ->header('Content-Type', 'text/csv')
             ->header('Content-Disposition', 'attachment; filename="product_upload_template.csv"');
     }
@@ -618,11 +591,6 @@ class ProductController extends Controller
                 'image' => 'required|image|max:10240',
             ]);
             if ($validator->fails()) {
-                \Log::error('[ProductController@uploadImage] Validation failed (multi)', [
-                    'product_id' => $product->id,
-                    'fields' => $request->all(),
-                    'errors' => $validator->errors(),
-                ]);
                 return response()->json([
                     'message' => 'Validation failed',
                     'errors' => $validator->errors(),
@@ -666,26 +634,8 @@ class ProductController extends Controller
                     'sort_order' => $maxSortOrder + 1,
                     'image_type' => $imageType,
                     'is_mobile' => $isMobile,
-                ]);
-                Log::info('Image uploaded successfully', [
-                    'product_id' => $product->id,
-                    'variant_id' => $request->filled('variant_id') ? $request->input('variant_id') : null,
-                    'image_id' => $image->id,
-                    'image_type' => $imageType,
-                    'is_mobile' => $isMobile,
-                    'imageable_type' => get_class($imageable),
-                    'imageable_id' => $imageable->id,
-                    'local_path' => $result['public_id'],
-                    'compression_ratio' => $result['compression_ratio'] . '%'
-                ]);
-                $responses[] = $image;
-            } catch (\Exception $e) {
-                Log::error('Image upload failed', [
-                    'product_id' => $product->id,
-                    'variant_id' => $request->filled('variant_id') ? $request->input('variant_id') : null,
-                    'error' => $e->getMessage()
-                ]);
-                return response()->json([
+                ]);$responses[] = $image;
+            } catch (\Exception $e) { return response()->json([
                     'message' => 'Failed to upload image: ' . $e->getMessage()
                 ], 500);
             }
@@ -694,7 +644,7 @@ class ProductController extends Controller
         if (count($responses) === 1) {
             return response()->json($responses[0], 201);
         }
-        return response()->json($responses, 201);
+return response()->json($responses, 201);
     }
 
     /**
@@ -753,26 +703,14 @@ class ProductController extends Controller
 
             if ($variantInfo) {
                 $logData['variant_info'] = $variantInfo;
-            }
-
-            Log::info('Image deleted successfully', $logData);
-
-            $response = ['message' => 'Image deleted successfully'];
+            }$response = ['message' => 'Image deleted successfully'];
             if ($belongsToVariant && $variantInfo) {
                 $response['variant_info'] = $variantInfo;
                 $response['warning'] = 'This image belonged to a specific product variant';
             }
+return response()->json($response);
 
-            return response()->json($response);
-
-        } catch (\Exception $e) {
-            Log::error('Image deletion failed', [
-                'product_id' => $product->id,
-                'image_id' => $image->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to delete image: ' . $e->getMessage()
             ], 500);
         }
@@ -853,8 +791,7 @@ class ProductController extends Controller
             }
 
             $totalImages = $mainImages->count() + $detailedImages->count() + $stylingImages->count() + $variantImages->count();
-
-            return response()->json([
+return response()->json([
                 'main_images' => $mainImages,
                 'detailed_images' => $detailedImages,
                 'styling_images' => $stylingImages,
@@ -869,13 +806,7 @@ class ProductController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to get categorized images', [
-                'product_id' => $product->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to get images: ' . $e->getMessage()
             ], 500);
         }
@@ -910,23 +841,11 @@ class ProductController extends Controller
 
             // Return updated images
             $updatedImages = $product->images()->orderBy('sort_order')->get();
-
-            Log::info('Images reordered successfully', [
-                'product_id' => $product->id,
-                'image_count' => count($request->images)
-            ]);
-
-            return response()->json($updatedImages);
+return response()->json($updatedImages);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
-            Log::error('Image reordering failed', [
-                'product_id' => $product->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+return response()->json([
                 'message' => 'Failed to reorder images: ' . $e->getMessage()
             ], 500);
         }
@@ -999,8 +918,7 @@ class ProductController extends Controller
         if ($request->has('temp_image_ids')) {
             $this->reassignTempImages($variant, $request->input('temp_image_ids'));
         }
-
-        return response()->json([
+return response()->json([
             'message' => 'Variant created successfully',
             'variant' => new ProductVariantResource($variant)
         ], 201);
@@ -1043,21 +961,8 @@ class ProductController extends Controller
                 // Update the imageable relationship to point to the variant
                 $image->imageable_id = $variant->id;
                 $image->imageable_type = ProductVariant::class;
-                $image->save();
-                
-                Log::info('Image reassigned to variant', [
-                    'image_id' => $image->id,
-                    'variant_id' => $variant->id,
-                    'product_id' => $variant->product_id
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::error('Failed to reassign images to variant', [
-                'variant_id' => $variant->id,
-                'temp_image_ids' => $tempImageIds,
-                'error' => $e->getMessage()
-            ]);
-        }
+                $image->save();}
+        } catch (\Exception $e) {}
     }
 
     /**
@@ -1097,8 +1002,7 @@ class ProductController extends Controller
 
         // Load the images relationship for the response
         $variant->load('images');
-
-        return response()->json([
+return response()->json([
             'message' => 'Variant updated successfully',
             'variant' => new ProductVariantResource($variant)
         ]);
@@ -1115,8 +1019,7 @@ class ProductController extends Controller
         }
 
         $variant->delete();
-
-        return response()->json(['message' => 'Variant deleted successfully']);
+return response()->json(['message' => 'Variant deleted successfully']);
     }
 
     /**
@@ -1125,8 +1028,7 @@ class ProductController extends Controller
     public function destroyVariantStandalone(ProductVariant $variant)
     {
         $variant->delete();
-
-        return response()->json(['message' => 'Variant deleted successfully']);
+return response()->json(['message' => 'Variant deleted successfully']);
     }
     
     /**
@@ -1146,14 +1048,8 @@ class ProductController extends Controller
                     $query->where('stock', 0);
                 })->count(),
             ];
-
-            return response()->json($stats);
-        } catch (\Exception $e) {
-            Log::error('Failed to get product statistics', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+return response()->json($stats);
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to get product statistics'
             ], 500);
         }
@@ -1172,14 +1068,8 @@ class ProductController extends Controller
             })->with(['variants' => function ($query) use ($threshold) {
                 $query->where('stock', '<', $threshold)->where('stock', '>', 0);
             }])->get();
-
-            return response()->json($products);
-        } catch (\Exception $e) {
-            Log::error('Failed to get low stock products', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+return response()->json($products);
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to get low stock products'
             ], 500);
         }
@@ -1196,14 +1086,8 @@ class ProductController extends Controller
             })->with(['variants' => function ($query) {
                 $query->where('stock', 0);
             }])->get();
-
-            return response()->json($products);
-        } catch (\Exception $e) {
-            Log::error('Failed to get out of stock products', [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
+return response()->json($products);
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to get out of stock products'
             ], 500);
         }

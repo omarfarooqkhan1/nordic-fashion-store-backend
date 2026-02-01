@@ -26,6 +26,11 @@ class OrderItem extends Model
     ];
 
     /**
+     * Append converted prices to the serialized array
+     */
+    protected $appends = ['converted_price', 'converted_subtotal', 'formatted_price', 'formatted_subtotal'];
+
+    /**
      * Get the order that owns the item.
      */
     public function order(): BelongsTo
@@ -39,5 +44,49 @@ class OrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    /**
+     * Get converted price in order's currency
+     */
+    public function getConvertedPriceAttribute(): float
+    {
+        if (!$this->relationLoaded('order')) {
+            $this->load('order');
+        }
+        return $this->order ? $this->order->convertFromEUR($this->price) : $this->price;
+    }
+
+    /**
+     * Get converted subtotal in order's currency
+     */
+    public function getConvertedSubtotalAttribute(): float
+    {
+        if (!$this->relationLoaded('order')) {
+            $this->load('order');
+        }
+        return $this->order ? $this->order->convertFromEUR($this->subtotal) : $this->subtotal;
+    }
+
+    /**
+     * Get formatted price in order's currency
+     */
+    public function getFormattedPriceAttribute(): string
+    {
+        if (!$this->relationLoaded('order')) {
+            $this->load('order');
+        }
+        return $this->order ? $this->order->getFormattedPrice($this->price) : '€' . number_format($this->price, 2);
+    }
+
+    /**
+     * Get formatted subtotal in order's currency
+     */
+    public function getFormattedSubtotalAttribute(): string
+    {
+        if (!$this->relationLoaded('order')) {
+            $this->load('order');
+        }
+        return $this->order ? $this->order->getFormattedPrice($this->subtotal) : '€' . number_format($this->subtotal, 2);
     }
 }

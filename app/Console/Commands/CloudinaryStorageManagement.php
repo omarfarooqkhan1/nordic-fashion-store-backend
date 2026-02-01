@@ -54,7 +54,7 @@ class CloudinaryStorageManagement extends Command
         return 0;
     }
 
-    private function showUsage(CloudinaryService $cloudinaryService)
+private function showUsage(CloudinaryService $cloudinaryService)
     {
         $this->info('📊 Checking Cloudinary storage usage...');
         
@@ -83,7 +83,7 @@ class CloudinaryStorageManagement extends Command
         }
     }
 
-    private function cleanupImages(CloudinaryService $cloudinaryService)
+private function cleanupImages(CloudinaryService $cloudinaryService)
     {
         $days = $this->option('days');
         $force = $this->option('force');
@@ -115,7 +115,7 @@ class CloudinaryStorageManagement extends Command
         }
     }
 
-    private function optimizeStorage(CloudinaryService $cloudinaryService)
+private function optimizeStorage(CloudinaryService $cloudinaryService)
     {
         $this->info('🔧 Running storage optimization...');
 

@@ -42,11 +42,6 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $e)
     {
-        \Log::error('Exception caught', [
-            'exception' => get_class($e),
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
         return parent::render($request, $e);
     }
 }

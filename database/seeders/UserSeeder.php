@@ -14,10 +14,10 @@ class UserSeeder extends Seeder
     {
         // Create admin users (password only)
         User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'support@nordflex.store'],
             [
-                'name' => 'Super Admin',
-                'password' => 'admin123',
+                'name' => 'Nordflex Support',
+                'password' => '11223344',
                 'role' => 'admin',
                 'email_verified_at' => now(),
             ]

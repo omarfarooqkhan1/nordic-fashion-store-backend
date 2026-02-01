@@ -19,7 +19,8 @@ class LocalImageService
     {
         $this->disk = 'public'; // Use public disk for web accessibility
         $this->basePath = 'images';
-        $this->publicUrl = config('app.url') . '/storage';
+        // Use relative URL for better compatibility across environments
+        $this->publicUrl = '/storage';
     }
 
     /**
@@ -60,7 +61,7 @@ class LocalImageService
             // For blogs, store directly in blogs folder without images prefix
             if ($folder) {
                 $fullPath = $this->basePath . '/' . $folder . '/' . $filename;
-                $publicUrl = '/storage/' . $fullPath;
+                $publicUrl = $this->publicUrl . '/' . $fullPath;
             } else {
                 // Store all images directly under /images for simplicity
                 $fullPath = $this->basePath . '/' . $filename;
@@ -87,15 +88,6 @@ class LocalImageService
             $compressionRatio = $originalSize > 0 ? round((1 - $storedSize / $originalSize) * 100, 1) : 0;
 
             // Log upload results
-            Log::info('Image uploaded locally', [
-                'filename' => $filename,
-                'folder' => $folder,
-                'original_size_mb' => $originalSizeMB,
-                'stored_size_mb' => $storedSizeMB,
-                'compression_ratio' => $compressionRatio . '%',
-                'public_url' => $publicUrl
-            ]);
-
             return [
                 'public_id' => $fullPath, // Use full path as ID for consistency
                 'secure_url' => $publicUrl,
@@ -109,14 +101,7 @@ class LocalImageService
                 'compression_ratio' => $compressionRatio
             ];
 
-        } catch (Exception $e) {
-            Log::error('Failed to upload image locally', [
-                'file' => $file instanceof UploadedFile ? $file->getClientOriginalName() : $file,
-                'folder' => $folder,
-                'error' => $e->getMessage()
-            ]);
-
-            return null;
+        } catch (Exception $e) {return null;
         }
     }
 
@@ -319,29 +304,10 @@ class LocalImageService
             $fullPath = $this->basePath . '/' . $filePath;
 
             if (Storage::disk($this->disk)->exists($fullPath)) {
-                $deleted = Storage::disk($this->disk)->delete($fullPath);
-                
-                Log::info('Image deleted locally', [
-                    'file_path' => $fullPath,
-                    'success' => $deleted
-                ]);
+                $deleted = Storage::disk($this->disk)->delete($fullPath);return $deleted;
+            }return true; // Consider it successful if file doesn't exist
 
-                return $deleted;
-            }
-
-            Log::warning('Image not found for deletion', [
-                'file_path' => $fullPath
-            ]);
-
-            return true; // Consider it successful if file doesn't exist
-
-        } catch (Exception $e) {
-            Log::error('Failed to delete image locally', [
-                'public_id' => $publicId,
-                'error' => $e->getMessage()
-            ]);
-
-            return false;
+        } catch (Exception $e) {return false;
         }
     }
 
@@ -359,13 +325,7 @@ class LocalImageService
 
             return $this->publicUrl . '/' . $publicId;
 
-        } catch (Exception $e) {
-            Log::error('Failed to generate optimized URL', [
-                'public_id' => $publicId,
-                'error' => $e->getMessage()
-            ]);
-
-            return '';
+        } catch (Exception $e) {return '';
         }
     }
 
@@ -397,12 +357,7 @@ class LocalImageService
                 'storage_type' => 'local'
             ];
 
-        } catch (Exception $e) {
-            Log::error('Failed to get storage usage', [
-                'error' => $e->getMessage()
-            ]);
-
-            return [
+        } catch (Exception $e) {return [
                 'total_files' => 0,
                 'total_size_bytes' => 0,
                 'total_size_mb' => 0,
@@ -438,27 +393,14 @@ class LocalImageService
                 }
             }
 
-            $deletedSizeMB = round($deletedSize / 1024 / 1024, 2);
-
-            Log::info('Cleanup completed', [
-                'deleted_files' => count($deletedFiles),
-                'deleted_size_mb' => $deletedSizeMB,
-                'days_old' => $daysOld
-            ]);
-
-            return [
+            $deletedSizeMB = round($deletedSize / 1024 / 1024, 2);return [
                 'deleted_files' => count($deletedFiles),
                 'deleted_size_bytes' => $deletedSize,
                 'deleted_size_mb' => $deletedSizeMB,
                 'files' => $deletedFiles
             ];
 
-        } catch (Exception $e) {
-            Log::error('Failed to cleanup old images', [
-                'error' => $e->getMessage()
-            ]);
-
-            return [
+        } catch (Exception $e) {return [
                 'deleted_files' => 0,
                 'deleted_size_bytes' => 0,
                 'deleted_size_mb' => 0,
@@ -589,13 +531,7 @@ class LocalImageService
 
             return $createdSizes;
 
-        } catch (Exception $e) {
-            Log::error('Failed to create image sizes', [
-                'public_id' => $publicId,
-                'error' => $e->getMessage()
-            ]);
-
-            return [];
+        } catch (Exception $e) {return [];
         }
     }
 }

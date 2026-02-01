@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
@@ -29,15 +30,6 @@ class StripeController extends Controller
                 throw new \Exception('Stripe secret key not configured');
             }
             Stripe::setApiKey($stripeSecret);
-            
-            // Log the request for debugging
-            Log::info('Creating payment intent', [
-                'request_data' => $request->all(),
-                'stripe_secret_configured' => !empty($stripeSecret),
-                'stripe_secret_length' => strlen($stripeSecret),
-                'stripe_secret_start' => substr($stripeSecret, 0, 10) . '...',
-                'stripe_secret_end' => '...' . substr($stripeSecret, -10),
-            ]);
 
             $validator = Validator::make($request->all(), [
                 'amount' => 'required|integer|min:1',
@@ -76,40 +68,19 @@ class StripeController extends Controller
                 'receipt_email' => $customerEmail,
                 'description' => $orderId ? "Order #{$orderId}" : "Payment",
             ]);
-
-            Log::info('Payment intent created successfully', [
-                'payment_intent_id' => $paymentIntent->id,
-                'amount' => $amount,
-                'currency' => $currency,
-                'order_id' => $orderId,
-                'customer_email' => $customerEmail,
-            ]);
-
-            return response()->json([
+return response()->json([
                 'client_secret' => $paymentIntent->client_secret,
                 'payment_intent_id' => $paymentIntent->id,
                 'amount' => $amount,
                 'currency' => $currency,
             ]);
 
-        } catch (ApiErrorException $e) {
-            Log::error('Stripe API error creating payment intent', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all(),
-            ]);
-
-            return response()->json([
+        } catch (ApiErrorException $e) {return response()->json([
                 'message' => 'Failed to create payment intent',
                 'error' => $e->getMessage()
             ], 500);
 
-        } catch (\Exception $e) {
-            Log::error('Unexpected error creating payment intent', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all(),
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'An unexpected error occurred',
                 'error' => $e->getMessage()
             ], 500);
@@ -152,14 +123,7 @@ class StripeController extends Controller
                 'payment_method' => $paymentMethodId,
                 'return_url' => config('app.frontend_url') . '/checkout/success',
             ]);
-
-            Log::info('Payment confirmed successfully', [
-                'payment_intent_id' => $paymentIntentId,
-                'payment_method_id' => $paymentMethodId,
-                'status' => $paymentIntent->status,
-            ]);
-
-            return response()->json([
+return response()->json([
                 'success' => true,
                 'payment_intent' => [
                     'id' => $paymentIntent->id,
@@ -169,24 +133,12 @@ class StripeController extends Controller
                 ],
             ]);
 
-        } catch (ApiErrorException $e) {
-            Log::error('Stripe API error confirming payment', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all(),
-            ]);
-
-            return response()->json([
+        } catch (ApiErrorException $e) {return response()->json([
                 'message' => 'Failed to confirm payment',
                 'error' => $e->getMessage()
             ], 500);
 
-        } catch (\Exception $e) {
-            Log::error('Unexpected error confirming payment', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all(),
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'An unexpected error occurred',
                 'error' => $e->getMessage()
             ], 500);
@@ -207,37 +159,19 @@ class StripeController extends Controller
             Stripe::setApiKey($stripeSecret);
             
             $paymentIntent = PaymentIntent::retrieve($paymentIntentId);
-
-            Log::info('Payment intent status retrieved', [
-                'payment_intent_id' => $paymentIntentId,
-                'status' => $paymentIntent->status,
-            ]);
-
-            return response()->json([
+return response()->json([
                 'status' => $paymentIntent->status,
                 'amount' => $paymentIntent->amount,
                 'currency' => $paymentIntent->currency,
                 'created' => $paymentIntent->created,
             ]);
 
-        } catch (ApiErrorException $e) {
-            Log::error('Stripe API error retrieving payment intent', [
-                'error' => $e->getMessage(),
-                'payment_intent_id' => $paymentIntentId,
-            ]);
-
-            return response()->json([
+        } catch (ApiErrorException $e) {return response()->json([
                 'message' => 'Failed to retrieve payment intent',
                 'error' => $e->getMessage()
             ], 500);
 
-        } catch (\Exception $e) {
-            Log::error('Unexpected error retrieving payment intent', [
-                'error' => $e->getMessage(),
-                'payment_intent_id' => $paymentIntentId,
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'message' => 'An unexpected error occurred',
                 'error' => $e->getMessage()
             ], 500);
@@ -265,14 +199,7 @@ class StripeController extends Controller
                 $payload,
                 $sigHeader,
                 $endpointSecret
-            );
-
-            Log::info('Stripe webhook received', [
-                'event_type' => $event->type,
-                'event_id' => $event->id,
-            ]);
-
-            // Handle the event
+            );// Handle the event
             switch ($event->type) {
                 case 'payment_intent.succeeded':
                     $this->handlePaymentSucceeded($event->data->object);
@@ -280,23 +207,14 @@ class StripeController extends Controller
                 case 'payment_intent.payment_failed':
                     $this->handlePaymentFailed($event->data->object);
                     break;
-                default:
-                    Log::info('Unhandled Stripe event type', ['type' => $event->type]);
-            }
+                default:}
+return response()->json(['status' => 'success']);
 
-            return response()->json(['status' => 'success']);
+        } catch (\UnexpectedValueException $e) {return response()->json(['error' => 'Invalid payload'], 400);
 
-        } catch (\UnexpectedValueException $e) {
-            Log::error('Invalid payload in Stripe webhook', ['error' => $e->getMessage()]);
-            return response()->json(['error' => 'Invalid payload'], 400);
+        } catch (\Stripe\Exception\SignatureVerificationException $e) {return response()->json(['error' => 'Invalid signature'], 400);
 
-        } catch (\Stripe\Exception\SignatureVerificationException $e) {
-            Log::error('Invalid signature in Stripe webhook', ['error' => $e->getMessage()]);
-            return response()->json(['error' => 'Invalid signature'], 400);
-
-        } catch (\Exception $e) {
-            Log::error('Unexpected error in Stripe webhook', ['error' => $e->getMessage()]);
-            return response()->json(['error' => 'Unexpected error'], 500);
+        } catch (\Exception $e) { return response()->json(['error' => 'Unexpected error'], 500);
         }
     }
 
@@ -304,14 +222,7 @@ class StripeController extends Controller
      * Handle successful payment
      */
     private function handlePaymentSucceeded($paymentIntent)
-    {
-        Log::info('Payment succeeded', [
-            'payment_intent_id' => $paymentIntent->id,
-            'amount' => $paymentIntent->amount,
-            'metadata' => $paymentIntent->metadata,
-        ]);
-
-        // Update order payment status if order_id is in metadata
+    {// Update order payment status if order_id is in metadata
         if (isset($paymentIntent->metadata->order_id)) {
             $orderId = $paymentIntent->metadata->order_id;
             
@@ -323,29 +234,22 @@ class StripeController extends Controller
                     $order->notes = $order->notes . "\n\nStripe Payment Intent: " . $paymentIntent->id;
                     $order->save();
                     
-                    Log::info('Order payment status updated to completed via webhook', [
-                        'order_id' => $orderId,
-                        'payment_intent_id' => $paymentIntent->id,
-                    ]);
+                    // Send order confirmation email
+                    try {
+                        Mail::to($order->shipping_email)->send(new \App\Mail\OrderConfirmation($order));
+                    } catch (\Exception $emailError) {
+                        // Email sending failure shouldn't fail the webhook
+                    }
                     
                     // Clear the cart after successful payment
                     try {
                         $orderController = app(\App\Http\Controllers\Api\OrderController::class);
                         $orderController->clearCartAfterPayment($orderId);
-                        Log::info('Cart cleared after successful payment via webhook', ['order_id' => $orderId]);
                     } catch (\Exception $cartError) {
-                        Log::error('Failed to clear cart after payment via webhook', [
-                            'order_id' => $orderId,
-                            'error' => $cartError->getMessage(),
-                        ]);
+                        // Cart clearing failure shouldn't fail the webhook
                     }
                 }
-            } catch (\Exception $e) {
-                Log::error('Failed to update order payment status via webhook', [
-                    'order_id' => $orderId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            } catch (\Exception $e) {}
         }
     }
 
@@ -353,14 +257,7 @@ class StripeController extends Controller
      * Handle failed payment
      */
     private function handlePaymentFailed($paymentIntent)
-    {
-        Log::info('Payment failed', [
-            'payment_intent_id' => $paymentIntent->id,
-            'amount' => $paymentIntent->amount,
-            'metadata' => $paymentIntent->metadata,
-        ]);
-
-        // Update order payment status if order_id is in metadata
+    {// Update order payment status if order_id is in metadata
         if (isset($paymentIntent->metadata->order_id)) {
             $orderId = $paymentIntent->metadata->order_id;
             
@@ -370,19 +267,8 @@ class StripeController extends Controller
                     $order->payment_status = 'failed';
                     $order->payment_transaction_id = $paymentIntent->id;
                     $order->notes = $order->notes . "\n\nStripe Payment Intent: " . $paymentIntent->id;
-                    $order->save();
-                    
-                    Log::info('Order payment status updated to failed via webhook', [
-                        'order_id' => $orderId,
-                        'payment_intent_id' => $paymentIntent->id,
-                    ]);
-                }
-            } catch (\Exception $e) {
-                Log::error('Failed to update order payment status via webhook', [
-                    'order_id' => $orderId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+                    $order->save();}
+            } catch (\Exception $e) {}
         }
     }
 }

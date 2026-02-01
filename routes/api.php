@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\CloudinaryController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\ChatbotController;
+use App\Http\Controllers\Api\NewsletterController;
+use App\Http\Controllers\Api\Admin\AdminNewsletterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,23 +35,6 @@ Route::get('csrf-cookie', function () {
     }
 });
 
-// Test route to check if API is working
-Route::get('test', function () {
-    return response()->json(['message' => 'API is working', 'timestamp' => now()]);
-});
-
-// Debug route to check session and CSRF
-Route::get('debug-session', function () {
-    return response()->json([
-        'session_id' => session()->getId(),
-        'session_data' => session()->all(),
-        'csrf_token' => csrf_token(),
-        'app_key' => config('app.key'),
-        'session_driver' => config('session.driver'),
-        'timestamp' => now()
-    ]);
-});
-
 /*
 |--------------------------------------------------------------------------
 | Authentication Check Routes
@@ -69,6 +54,10 @@ Route::post('customer/verify-email', [AuthController::class, 'verifyEmailCode'])
 Route::post('customer/resend-verification', [AuthController::class, 'resendVerificationCode']);
 Route::post('password/send-reset-code', [\App\Http\Controllers\Api\AuthController::class, 'sendResetCode']);
 Route::post('password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
+
+// Admin password reset routes (public access)
+Route::post('admin/password/send-reset-code', [\App\Http\Controllers\Api\AuthController::class, 'sendAdminResetCode']);
+Route::post('admin/password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetAdminPassword']);
 
 // Auth0 signup/login for customers
 Route::post('customer/register-auth0', [AuthController::class, 'registerCustomerAuth0']);
@@ -134,6 +123,17 @@ Route::post('blogs/{slug}/like', [\App\Http\Controllers\Api\BlogController::clas
 Route::post('blogs/{slug}/view', [\App\Http\Controllers\Api\BlogController::class, 'view']);
 Route::get('blog-tags', [\App\Http\Controllers\Api\BlogController::class, 'tags']);
 
+// Newsletter routes (public access)
+Route::post('newsletter/subscribe', [NewsletterController::class, 'subscribe']);
+Route::post('newsletter/unsubscribe', [NewsletterController::class, 'unsubscribe']);
+Route::get('newsletter/unsubscribe/{email}', [NewsletterController::class, 'unsubscribeGet'])->name('newsletter.unsubscribe');
+Route::get('newsletter/status', [NewsletterController::class, 'status']);
+
+// Newsletter routes (authenticated users)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::put('newsletter/preference', [NewsletterController::class, 'updateUserPreference']);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Admin Protected Routes - Password-authenticated admins only
@@ -186,6 +186,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     });
     
     // User management routes
+    // User statistics and bulk operations (must be before parameterized routes)
+    Route::get('admin/users/stats', [AdminUserController::class, 'getUserStats']);
+    Route::post('admin/users/bulk-status', [AdminUserController::class, 'bulkUpdateStatus']);
+    Route::post('admin/users/bulk-delete', [AdminUserController::class, 'bulkDelete']);
+    
+    // Individual user routes
     Route::get('admin/users', [AdminUserController::class, 'index']);
     Route::get('admin/users/{user}', [AdminUserController::class, 'show']);
     Route::post('admin/users', [AdminUserController::class, 'store']);
@@ -193,9 +199,18 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('admin/users/{user}', [AdminUserController::class, 'destroy']);
     Route::patch('admin/users/{user}/status', [AdminUserController::class, 'updateStatus']);
     Route::post('admin/users/{user}/reset-password', [AdminUserController::class, 'resetPassword']);
+    Route::post('admin/users/{user}/mark-notified', [\App\Http\Controllers\Api\AdminDashboardController::class, 'markRegistrationAsNotified']);
     
-    // User statistics and bulk operations
-    Route::get('admin/users/stats', [AdminUserController::class, 'getUserStats']);
+    // Newsletter management (admin only)
+    Route::prefix('admin/newsletter')->group(function () {
+        Route::get('/', [AdminNewsletterController::class, 'index']);
+        Route::get('stats', [AdminNewsletterController::class, 'stats']);
+        Route::post('/', [AdminNewsletterController::class, 'store']);
+        Route::put('{id}', [AdminNewsletterController::class, 'update']);
+        Route::delete('{id}', [AdminNewsletterController::class, 'destroy']);
+        Route::get('export', [AdminNewsletterController::class, 'export']);
+        Route::post('broadcast', [AdminNewsletterController::class, 'sendBroadcast']);
+    });
     Route::post('admin/users/bulk-status', [AdminUserController::class, 'bulkUpdateStatus']);
     Route::post('admin/users/bulk-delete', [AdminUserController::class, 'bulkDelete']);
     
@@ -203,7 +218,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/stats', [\App\Http\Controllers\Api\AdminDashboardController::class, 'getStats']);
     Route::get('admin/recent-registrations', [\App\Http\Controllers\Api\AdminDashboardController::class, 'getRecentRegistrations']);
     Route::get('admin/recent-orders', [\App\Http\Controllers\Api\AdminDashboardController::class, 'getRecentOrders']);
-    Route::post('admin/users/{user}/mark-notified', [\App\Http\Controllers\Api\AdminDashboardController::class, 'markRegistrationAsNotified']);
     
     // Admin blog management
     Route::apiResource('admin/blogs', \App\Http\Controllers\Api\Admin\AdminBlogController::class);
@@ -304,38 +318,3 @@ Route::prefix('stripe')->group(function () {
 
 // Stripe webhook (no auth required)
 Route::post('stripe/webhook', [\App\Http\Controllers\Api\StripeController::class, 'handleWebhook']);
-
-// Test Stripe connection (temporary, remove in production)
-Route::get('stripe/test', function() {
-    try {
-        $stripeSecret = config('services.stripe.secret');
-        if (!$stripeSecret) {
-            return response()->json(['error' => 'Stripe secret not configured'], 500);
-        }
-        
-        \Stripe\Stripe::setApiKey($stripeSecret);
-        
-        // Try to create a simple test payment intent
-        $paymentIntent = \Stripe\PaymentIntent::create([
-            'amount' => 100, // 1 EUR in cents
-            'currency' => 'eur',
-            'automatic_payment_methods' => ['enabled' => true],
-        ]);
-        
-        return response()->json([
-            'success' => true,
-            'payment_intent_id' => $paymentIntent->id,
-            'stripe_secret_length' => strlen($stripeSecret),
-            'stripe_secret_start' => substr($stripeSecret, 0, 10) . '...',
-            'stripe_secret_end' => '...' . substr($stripeSecret, -10),
-        ]);
-        
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => $e->getMessage(),
-            'stripe_secret_length' => strlen($stripeSecret ?? ''),
-            'stripe_secret_start' => $stripeSecret ? (substr($stripeSecret, 0, 10) . '...') : 'N/A',
-            'stripe_secret_end' => $stripeSecret ? ('...' . substr($stripeSecret, -10)) : 'N/A',
-        ], 500);
-    }
-});

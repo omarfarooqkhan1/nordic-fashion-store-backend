@@ -17,8 +17,7 @@ class AddressController extends Controller
     public function index(): JsonResponse
     {
         $addresses = Auth::user()->addresses()->orderBy('is_default', 'desc')->orderBy('created_at', 'desc')->get();
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'data' => $addresses,
         ]);
@@ -32,15 +31,17 @@ class AddressController extends Controller
         $request->validate([
             'type' => ['nullable', Rule::in(['home', 'work', 'other'])],
             'label' => 'nullable|string|max:255',
+            'name' => 'nullable|string|max:255',
             'street' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'state' => 'nullable|string|max:255',
             'postal_code' => 'required|string|max:20',
             'country' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
         ]);
 
         $address = Auth::user()->addresses()->create($request->only([
-            'type', 'label', 'street', 'city', 'state', 'postal_code', 'country'
+            'type', 'label', 'name', 'street', 'city', 'state', 'postal_code', 'country', 'phone'
         ]));
 
         // If this is the user's first address, make it the default
@@ -49,8 +50,7 @@ class AddressController extends Controller
             $address->update(['is_default' => true]);
             $address->refresh(); // Refresh to get updated data
         }
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Address created successfully',
             'data' => $address,
@@ -69,8 +69,7 @@ class AddressController extends Controller
                 'message' => 'Address not found',
             ], 404);
         }
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'data' => $address,
         ]);
@@ -92,19 +91,20 @@ class AddressController extends Controller
         $request->validate([
             'type' => ['nullable', Rule::in(['home', 'work', 'other'])],
             'label' => 'nullable|string|max:255',
+            'name' => 'nullable|string|max:255',
             'street' => 'required|string|max:255',
             'city' => 'required|string|max:255',
-            'state' => 'required|string|max:255',
+            'state' => 'nullable|string|max:255',
             'postal_code' => 'required|string|max:20',
             'country' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
             'is_default' => 'sometimes|boolean',
         ]);
 
         $address->update($request->only([
-            'type', 'label', 'street', 'city', 'state', 'postal_code', 'country', 'is_default'
+            'type', 'label', 'name', 'street', 'city', 'state', 'postal_code', 'country', 'phone', 'is_default'
         ]));
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Address updated successfully',
             'data' => $address,
@@ -129,8 +129,7 @@ class AddressController extends Controller
 
         // Then set this address as default
         $address->update(['is_default' => true]);
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Default address updated successfully',
             'data' => $address,
@@ -171,8 +170,7 @@ class AddressController extends Controller
         }
 
         $address->delete();
-
-        return response()->json([
+return response()->json([
             'success' => true,
             'message' => 'Address deleted successfully',
         ]);

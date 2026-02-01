@@ -32,8 +32,7 @@ class VariantVideoController extends Controller
             $variant->video_path = $relativePath;
             $variant->save();
         }
-
-        return response()->json([
+return response()->json([
             'message' => 'Video uploaded and attached to all variants of this color.',
             'video_path' => $relativePath,
             'variant_ids' => $variants->pluck('id'),

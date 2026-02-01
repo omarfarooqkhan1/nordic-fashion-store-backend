@@ -68,38 +68,13 @@ class CloudinaryService
 
             // Check file size before upload
             $fileSizeBytes = filesize($filePath);
-            $fileSizeMB = round($fileSizeBytes / 1024 / 1024, 2);
-            
-            Log::info('Uploading image to Cloudinary', [
-                'original_size_mb' => $fileSizeMB,
-                'file_path' => basename($filePath),
-                'compression_settings' => $options
-            ]);
-
-            $result = $this->cloudinary->uploadApi()->upload($filePath, $options);
+            $fileSizeMB = round($fileSizeBytes / 1024 / 1024, 2);$result = $this->cloudinary->uploadApi()->upload($filePath, $options);
 
             // Log compression results
             $uploadedSizeBytes = $result['bytes'] ?? 0;
             $uploadedSizeMB = round($uploadedSizeBytes / 1024 / 1024, 2);
-            $compressionRatio = $fileSizeBytes > 0 ? round((1 - $uploadedSizeBytes / $fileSizeBytes) * 100, 1) : 0;
-
-            Log::info('Image uploaded to Cloudinary', [
-                'public_id' => $result['public_id'],
-                'secure_url' => $result['secure_url'],
-                'original_size_mb' => $fileSizeMB,
-                'compressed_size_mb' => $uploadedSizeMB,
-                'compression_ratio' => $compressionRatio . '%',
-                'format' => $result['format'] ?? 'unknown'
-            ]);
-
-            return $result->getArrayCopy();
-        } catch (Exception $e) {
-            Log::error('Failed to upload image to Cloudinary', [
-                'file_path' => $filePath,
-                'error' => $e->getMessage()
-            ]);
-
-            return null;
+            $compressionRatio = $fileSizeBytes > 0 ? round((1 - $uploadedSizeBytes / $fileSizeBytes) * 100, 1) : 0;return $result->getArrayCopy();
+        } catch (Exception $e) {return null;
         }
     }
 
@@ -114,13 +89,7 @@ class CloudinaryService
         try {
             $result = $this->cloudinary->uploadApi()->destroy($publicId);
             return $result['result'] === 'ok';
-        } catch (Exception $e) {
-            Log::error('Failed to delete image from Cloudinary', [
-                'public_id' => $publicId,
-                'error' => $e->getMessage()
-            ]);
-
-            return false;
+        } catch (Exception $e) {return false;
         }
     }
 
@@ -145,13 +114,7 @@ class CloudinaryService
                 : implode(',', $transformations) . '/';
                 
             return $baseUrl . $transformationString . $publicId;
-        } catch (Exception $e) {
-            Log::error('Failed to generate transformation URL', [
-                'public_id' => $publicId,
-                'error' => $e->getMessage()
-            ]);
-
-            return '';
+        } catch (Exception $e) {return '';
         }
     }
 
@@ -175,17 +138,8 @@ class CloudinaryService
                 'transformations_limit' => 25000, // Free tier limit
                 'bandwidth_used_bytes' => $usage['bandwidth']['usage'] ?? 0,
                 'bandwidth_used_mb' => round(($usage['bandwidth']['usage'] ?? 0) / 1024 / 1024, 2)
-            ];
-
-            Log::info('Cloudinary storage usage', $storageInfo);
-            
-            return $storageInfo;
-        } catch (Exception $e) {
-            Log::error('Failed to get storage usage', [
-                'error' => $e->getMessage()
-            ]);
-
-            return null;
+            ];return $storageInfo;
+        } catch (Exception $e) {return null;
         }
     }
 
@@ -229,25 +183,11 @@ class CloudinaryService
                         }
                     }
                 } catch (Exception $e) {
-                    $results['failed']++;
-                    Log::warning('Failed to delete old image', [
-                        'public_id' => $resource['public_id'] ?? 'unknown',
-                        'error' => $e->getMessage()
-                    ]);
-                }
+                    $results['failed']++;}
             }
 
-            $results['freed_mb'] = round($results['freed_bytes'] / 1024 / 1024, 2);
-
-            Log::info('Cleanup completed', $results);
-            
-            return $results;
-        } catch (Exception $e) {
-            Log::error('Failed to cleanup old images', [
-                'error' => $e->getMessage()
-            ]);
-
-            return [
+            $results['freed_mb'] = round($results['freed_bytes'] / 1024 / 1024, 2);return $results;
+        } catch (Exception $e) {return [
                 'deleted' => 0,
                 'failed' => 0,
                 'freed_bytes' => 0,
@@ -294,35 +234,13 @@ class CloudinaryService
 
             // Check file size before upload
             $fileSizeBytes = filesize($filePath);
-            $fileSizeMB = round($fileSizeBytes / 1024 / 1024, 2);
-            Log::info('Uploading video to Cloudinary', [
-                'original_size_mb' => $fileSizeMB,
-                'file_path' => basename($filePath),
-                'upload_settings' => $uploadOptions
-            ]);
-
-            $result = $this->cloudinary->uploadApi()->upload($filePath, $uploadOptions);
+            $fileSizeMB = round($fileSizeBytes / 1024 / 1024, 2);$result = $this->cloudinary->uploadApi()->upload($filePath, $uploadOptions);
 
             // Log upload results
             $uploadedSizeBytes = $result['bytes'] ?? 0;
             $uploadedSizeMB = round($uploadedSizeBytes / 1024 / 1024, 2);
-            $compressionRatio = $fileSizeBytes > 0 ? round((1 - $uploadedSizeBytes / $fileSizeBytes) * 100, 1) : 0;
-            Log::info('Video uploaded to Cloudinary', [
-                'public_id' => $result['public_id'],
-                'secure_url' => $result['secure_url'],
-                'original_size_mb' => $fileSizeMB,
-                'uploaded_size_mb' => $uploadedSizeMB,
-                'compression_ratio' => $compressionRatio . '%',
-                'format' => $result['format'] ?? 'unknown'
-            ]);
-
-            return $result->getArrayCopy();
-        } catch (Exception $e) {
-            Log::error('Failed to upload video to Cloudinary', [
-                'file_path' => $filePath,
-                'error' => $e->getMessage()
-            ]);
-            return null;
+            $compressionRatio = $fileSizeBytes > 0 ? round((1 - $uploadedSizeBytes / $fileSizeBytes) * 100, 1) : 0;return $result->getArrayCopy();
+        } catch (Exception $e) {return null;
         }
     }
 
@@ -378,9 +296,7 @@ class CloudinaryService
                 try {
                     $result = $this->cloudinary->uploadApi()->destroy($frontPublicId);
                     if ($result['result'] === 'ok') {
-                        $results['deleted']++;
-                        Log::info('Front custom jacket image deleted from Cloudinary', ['public_id' => $frontPublicId]);
-                    } else {
+                        $results['deleted']++;} else {
                         $results['failed']++;
                         $results['errors'][] = "Failed to delete front image: {$frontPublicId}";
                     }
@@ -395,9 +311,7 @@ class CloudinaryService
                 try {
                     $result = $this->cloudinary->uploadApi()->destroy($backPublicId);
                     if ($result['result'] === 'ok') {
-                        $results['deleted']++;
-                        Log::info('Back custom jacket image deleted from Cloudinary', ['public_id' => $backPublicId]);
-                    } else {
+                        $results['deleted']++;} else {
                         $results['failed']++;
                         $results['errors'][] = "Failed to delete back image: {$backPublicId}";
                     }
@@ -405,18 +319,7 @@ class CloudinaryService
                     $results['failed']++;
                     $results['errors'][] = "Error deleting back image {$backPublicId}: " . $e->getMessage();
                 }
-            }
-
-            Log::info('Custom jacket images cleanup completed', $results);
-            
-        } catch (Exception $e) {
-            Log::error('Failed to cleanup custom jacket images', [
-                'error' => $e->getMessage(),
-                'front_url' => $frontImageUrl,
-                'back_url' => $backImageUrl
-            ]);
-            
-            $results['errors'][] = 'General cleanup error: ' . $e->getMessage();
+            }} catch (Exception $e) {$results['errors'][] = 'General cleanup error: ' . $e->getMessage();
         }
 
         return $results;
@@ -464,12 +367,7 @@ class CloudinaryService
             $publicId = preg_replace('/\.[^.]*$/', '', $publicId);
             
             return $publicId;
-        } catch (Exception $e) {
-            Log::warning('Failed to extract public ID from URL', [
-                'url' => $url,
-                'error' => $e->getMessage()
-            ]);
-            return null;
+        } catch (Exception $e) {return null;
         }
     }
 }

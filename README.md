@@ -60,7 +60,7 @@ DB_PASSWORD=your_password
 ### Mail Configuration
 ```env
 MAIL_MAILER=log
-MAIL_FROM_ADDRESS="noreply@nordflex.shop"
+MAIL_FROM_ADDRESS="noreply@nordflex.store"
 MAIL_FROM_NAME="Nord Flex"
 ```
 

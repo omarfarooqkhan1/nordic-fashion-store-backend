@@ -59,14 +59,7 @@ class LocalStorage implements StorageInterface
                 'size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
             ];
-        } catch (\Exception $e) {
-            Log::error('Failed to upload file to local storage', [
-                'file' => $file->getClientOriginalName(),
-                'folder' => $folder,
-                'error' => $e->getMessage()
-            ]);
-
-            return null;
+        } catch (\Exception $e) { return null;
         }
     }
 
@@ -84,13 +77,7 @@ class LocalStorage implements StorageInterface
             }
 
             return true;
-        } catch (\Exception $e) {
-            Log::error('Failed to delete file from local storage', [
-                'path' => $path,
-                'error' => $e->getMessage()
-            ]);
-
-            return false;
+        } catch (\Exception $e) { return false;
         }
     }
 

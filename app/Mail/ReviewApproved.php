@@ -30,7 +30,7 @@ class ReviewApproved extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            from: new Address(env('MAIL_FROM_ADDRESS', 'noreply@nordflex.shop'), env('MAIL_FROM_NAME', 'Nord Flex')),
+            from: new Address(env('MAIL_FROM_ADDRESS', 'noreply@nordflex.store'), env('MAIL_FROM_NAME', 'Nord Flex')),
             subject: 'Your Review Has Been Posted!'
         );
     }

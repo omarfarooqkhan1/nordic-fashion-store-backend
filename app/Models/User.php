@@ -26,6 +26,7 @@ class User extends Authenticatable
         'password_reset_code',
         'registration_date',
         'is_admin_notified',
+        'newsletter_subscription',
     ];
     /**
      * Check if user is email-verified (for password users)
@@ -62,6 +63,7 @@ class User extends Authenticatable
             'registration_date' => 'datetime',
             'password' => 'hashed',
             'is_admin_notified' => 'boolean',
+            'newsletter_subscription' => 'boolean',
         ];
     }
 
@@ -102,7 +104,7 @@ class User extends Authenticatable
      */
     public function isSuperAdmin(): bool
     {
-        return $this->email === 'admin@example.com';
+        return $this->email === 'support@nordflex.store';
     }
 
     /**

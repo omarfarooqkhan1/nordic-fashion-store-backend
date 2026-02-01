@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Mail\OrderConfirmation;
 use App\Mail\OrderShipped;
+use App\Mail\OrderStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -34,10 +35,10 @@ class OrderController extends Controller
             }
             
             $query = Order::where('session_id', $sessionId)
-                ->with('items');
+                ->with(['items.variant.images', 'items.variant.product.allImages']);
         } else {
             $query = $user->orders()
-                ->with('items');
+                ->with(['items.variant.images', 'items.variant.product.allImages']);
         }
 
         // Filter by status
@@ -62,7 +63,13 @@ class OrderController extends Controller
         $perPage = $request->get('per_page', 10);
         $orders = $query->orderBy('created_at', 'desc')->paginate($perPage);
         
-        return response()->json([
+        // Ensure each item has access to its order for currency conversion
+        $orders->getCollection()->each(function ($order) {
+            $order->items->each(function ($item) use ($order) {
+                $item->setRelation('order', $order);
+            });
+        });
+return response()->json([
             'data' => $orders->items(),
             'pagination' => [
                 'current_page' => $orders->currentPage(),
@@ -86,16 +93,21 @@ class OrderController extends Controller
             'shipping_phone' => 'nullable|string|max:20',
             'shipping_address' => 'required|string|max:255',
             'shipping_city' => 'required|string|max:255',
-            'shipping_state' => 'required|string|max:255',
+            'shipping_state' => 'nullable|string|max:255',
             'shipping_postal_code' => 'required|string|max:20',
             'shipping_country' => 'required|string|max:255',
             'billing_same_as_shipping' => 'boolean',
             'payment_method' => 'required|string|in:credit_card,paypal,stripe',
+            'currency' => 'nullable|string|size:3',
             'notes' => 'nullable|string',
+            // Add validation for calculated totals from frontend
+            'calculated_subtotal' => 'nullable|numeric|min:0',
+            'calculated_tax' => 'nullable|numeric|min:0',
+            'calculated_shipping' => 'nullable|numeric|min:0',
+            'calculated_total' => 'nullable|numeric|min:0',
         ]);
         
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {return response()->json(['errors' => $validator->errors()], 422);
         }
         
         // If billing is not same as shipping, validate billing info
@@ -106,13 +118,12 @@ class OrderController extends Controller
                 'billing_phone' => 'nullable|string|max:20',
                 'billing_address' => 'required|string|max:255',
                 'billing_city' => 'required|string|max:255',
-                'billing_state' => 'required|string|max:255',
+                'billing_state' => 'nullable|string|max:255',
                 'billing_postal_code' => 'required|string|max:20',
                 'billing_country' => 'required|string|max:255',
             ]);
             
-            if ($billingValidator->fails()) {
-                return response()->json(['errors' => $billingValidator->errors()], 422);
+            if ($billingValidator->fails()) {return response()->json(['errors' => $billingValidator->errors()], 422);
             }
         }
         
@@ -150,18 +161,6 @@ class OrderController extends Controller
         // Check if either regular cart or custom jacket cart has items
         $hasRegularItems = $cart && $cart->items && !$cart->items->isEmpty();
         $hasCustomItems = $customJacketItems && !$customJacketItems->isEmpty();
-        
-        Log::info('Order creation - Cart validation', [
-            'session_id' => $sessionId,
-            'user_id' => $user ? $user->id : null,
-            'has_regular_cart' => $cart ? true : false,
-            'regular_items_count' => $cart ? $cart->items->count() : 0,
-            'custom_items_count' => $customJacketItems->count(),
-            'has_regular_items' => $hasRegularItems,
-            'has_custom_items' => $hasCustomItems,
-            'cart_valid' => $hasRegularItems || $hasCustomItems
-        ]);
-        
         if (!$hasRegularItems && !$hasCustomItems) {
             return response()->json(['message' => 'Cart is empty'], 400);
         }
@@ -212,16 +211,23 @@ class OrderController extends Controller
             // Set payment info
             $order->payment_method = $request->payment_method;
             $order->payment_status = 'pending';
+            $order->currency = $request->currency ?? 'EUR';
             
-            // Add shipping time information to notes
-            $shippingTimeNote = 'Estimated shipping time: 7-14 business days';
-            $order->notes = $request->notes ? $request->notes . "\n\n" . $shippingTimeNote : $shippingTimeNote;
+            // Set notes from request without adding shipping time
+            $order->notes = $request->notes;
             
-            // Initialize totals
-            $order->subtotal = 0;
-            $order->tax = 0;
-            $order->shipping = 0;
-            $order->total = 0;
+            // Use calculated totals from frontend if provided (in user's selected currency)
+            // Otherwise fall back to calculating from cart items in EUR
+            if ($request->has('calculated_subtotal') && $request->has('calculated_total')) {
+                $order->subtotal = $request->calculated_subtotal;
+                $order->tax = $request->calculated_tax ?? 0;
+                $order->shipping = $request->calculated_shipping ?? 0;
+                $order->total = $request->calculated_total;} else {
+                // Fallback to old calculation method (will be in EUR)
+                $order->subtotal = 0;
+                $order->tax = 0;
+                $order->shipping = 0;
+                $order->total = 0;}
             
             $order->save();
             
@@ -257,16 +263,7 @@ class OrderController extends Controller
             }
             
             // Create order items from custom jacket cart
-            foreach ($customJacketItems as $customItem) {
-                Log::info('Processing custom jacket item for order', [
-                    'order_id' => $order->id,
-                    'custom_item_id' => $customItem->item_id,
-                    'name' => $customItem->name,
-                    'price' => $customItem->price,
-                    'quantity' => $customItem->quantity
-                ]);
-                
-                // Create snapshot of custom jacket data
+            foreach ($customJacketItems as $customItem) {// Create snapshot of custom jacket data
                 $customJacketSnapshot = [
                     'custom_jacket' => [
                         'id' => $customItem->item_id,
@@ -292,16 +289,12 @@ class OrderController extends Controller
                     'product_snapshot' => $customJacketSnapshot,
                 ]);
                 
-                $orderItem->save();
-                
-                Log::info('Custom jacket order item created', [
-                    'order_item_id' => $orderItem->id,
-                    'subtotal' => $orderItem->subtotal
-                ]);
-            }
+                $orderItem->save();}
             
-            // Calculate order totals
-            $order->calculateTotals();
+            // Calculate order totals only if we didn't use frontend calculated totals
+            if (!$request->has('calculated_total')) {
+                $order->calculateTotals();
+            }
             
             // Save shipping address to user's address book if authenticated and it's a new address
             if ($user) {
@@ -316,14 +309,7 @@ class OrderController extends Controller
                 // The order is created with 'pending' payment status
                 $order->payment_status = 'pending';
                 $order->save();
-                
-                Log::info('Order created with Stripe payment method - payment pending', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'payment_method' => 'stripe'
-                ]);
-                
-                return response()->json([
+return response()->json([
                     'message' => 'Order created successfully. Please complete payment.',
                     'order' => $order->load('items'),
                     'payment_required' => true,
@@ -340,35 +326,19 @@ class OrderController extends Controller
             }
             
             // Send order confirmation email
-            Log::info('Attempting to send order confirmation email', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'customer_email' => $order->shipping_email
-            ]);
             try {
                 Mail::to($order->shipping_email)->send(new OrderConfirmation($order));
-                Log::info('Order confirmation email sent successfully', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'customer_email' => $order->shipping_email
-                ]);
             } catch (\Exception $e) {
-                Log::error('Failed to send order confirmation email', [
-                    'error' => $e->getMessage(),
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'customer_email' => $order->shipping_email
-                ]);
+                // Email sending failure shouldn't fail the order
             }
-            
-            return response()->json([
+return response()->json([
                 'message' => 'Order placed successfully',
                 'order' => $order->load('items'),
             ], 201);
             
         } catch (\Exception $e) {
             DB::rollback();
-            return response()->json(['message' => $e->getMessage()], 400);
+return response()->json(['message' => $e->getMessage()], 400);
         }
     }
     
@@ -389,15 +359,11 @@ class OrderController extends Controller
             if ($order->user_id) {
                 $cart = Cart::where('user_id', $order->user_id)->first();
                 if ($cart) {
-                    $cart->items()->delete();
-                    Log::info('Regular cart cleared after successful payment', ['cart_id' => $cart->id, 'order_id' => $orderId]);
-                }
+                    $cart->items()->delete();}
             } elseif ($order->session_id) {
                 $cart = Cart::where('session_id', $order->session_id)->where('user_id', null)->first();
                 if ($cart) {
-                    $cart->items()->delete();
-                    Log::info('Session cart cleared after successful payment', ['cart_id' => $cart->id, 'order_id' => $orderId]);
-                }
+                    $cart->items()->delete();}
             }
 
             // Clear custom jacket cart items
@@ -408,13 +374,7 @@ class OrderController extends Controller
                 $customJacketItems = CustomJacketCartItem::where('session_id', $order->session_id)->get();
             }
 
-            if ($customJacketItems->isNotEmpty()) {
-                Log::info('Clearing custom jacket cart after successful payment', [
-                    'items_count' => $customJacketItems->count(),
-                    'order_id' => $orderId
-                ]);
-                
-                // Delete images from local storage
+            if ($customJacketItems->isNotEmpty()) {// Delete images from local storage
                 $localImageService = app(\App\Services\LocalImageService::class);
                 foreach ($customJacketItems as $customItem) {
                     // Extract local paths and delete
@@ -426,38 +386,22 @@ class OrderController extends Controller
                     }
                     if ($backPath) {
                         $localImageService->deleteImage($backPath);
-                    }
-                    
-                    Log::info('Custom jacket images deleted from local storage after payment', [
-                        'custom_item_id' => $customItem->item_id,
-                        'front_image' => $customItem->front_image_url,
-                        'back_image' => $customItem->back_image_url
-                    ]);
-                }
+                    }}
                 
                 // Delete custom jacket items from database
                 $customJacketItems->each(function ($item) {
                     $item->delete();
-                });
-                
-                Log::info('Custom jacket cart items deleted from database after payment');
-            }
+                });}
 
             DB::commit();
-            
-            return response()->json([
+return response()->json([
                 'message' => 'Cart cleared successfully after payment',
                 'order_id' => $orderId
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Failed to clear cart after payment', [
-                'error' => $e->getMessage(),
-                'order_id' => $orderId
-            ]);
-            
-            return response()->json([
+return response()->json([
                 'message' => 'Failed to clear cart after payment',
                 'error' => $e->getMessage()
             ], 500);
@@ -487,25 +431,27 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order not found'], 404);
         }
 
+        $previousPaymentStatus = $order->payment_status;
+
         // Update payment status
         $order->payment_status = $request->payment_status;
         $order->payment_transaction_id = $request->payment_transaction_id;
         
         // Store Stripe payment intent ID if provided
         if ($request->stripe_payment_intent_id) {
-            $order->notes = $order->notes . "\n\nStripe Payment Intent: " . $request->stripe_payment_intent_id;
+            // Don't add Stripe payment intent to notes anymore
         }
         
         $order->save();
-
-        Log::info('Order payment status updated', [
-            'order_id' => $order->id,
-            'order_number' => $order->order_number,
-            'payment_status' => $request->payment_status,
-            'payment_transaction_id' => $request->payment_transaction_id,
-        ]);
-
-        return response()->json([
+        // Send order confirmation email if payment status changed from pending to completed
+        if ($previousPaymentStatus !== 'completed' && $request->payment_status === 'completed') {
+            try {
+                Mail::to($order->shipping_email)->send(new OrderConfirmation($order));
+            } catch (\Exception $e) {
+                // Email sending failure shouldn't fail the order
+            }
+        }
+return response()->json([
             'message' => 'Payment status updated successfully',
             'order' => $order->load('items'),
         ]);
@@ -519,7 +465,7 @@ class OrderController extends Controller
         $user = $request->user();
         $sessionId = $request->header('X-Session-Id');
         
-        $query = Order::with('items');
+        $query = Order::with(['items.variant.images', 'items.variant.product.allImages']);
         
         if ($user) {
             $query->where('user_id', $user->id);
@@ -535,7 +481,11 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order not found'], 404);
         }
         
-        return response()->json($order);
+        // Ensure each item has access to the order for currency conversion
+        $order->items->each(function ($item) use ($order) {
+            $item->setRelation('order', $order);
+        });
+return response()->json($order);
     }
 
     /**
@@ -578,8 +528,7 @@ class OrderController extends Controller
         // Pagination
         $perPage = $request->get('per_page', 15);
         $orders = $query->paginate($perPage);
-        
-        return response()->json([
+return response()->json([
             'data' => $orders->items(),
             'pagination' => [
                 'current_page' => $orders->currentPage(),
@@ -595,16 +544,14 @@ class OrderController extends Controller
      * Admin: Update order status and tracking
      */
     public function adminUpdate(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
+    {$validator = Validator::make($request->all(), [
             'status' => 'sometimes|in:pending,processing,shipped,delivered,cancelled',
             'tracking_number' => 'required_if:status,shipped|nullable|string|max:255',
-            'shipping_service' => 'required_if:status,shipped|nullable|in:DHL,FedEx,UPS',
+            'shipping_service' => 'required_if:status,shipped|nullable|string|max:255',
             'notes' => 'sometimes|nullable|string|max:1000',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
+        if ($validator->fails()) {return response()->json([
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
@@ -612,15 +559,13 @@ class OrderController extends Controller
 
         // Additional validation: if status is being set to shipped, ensure both tracking and service are provided
         if ($request->input('status') === 'shipped') {
-            if (empty($request->input('tracking_number'))) {
-                return response()->json([
+            if (empty($request->input('tracking_number'))) {return response()->json([
                     'message' => 'Tracking number is required when setting order status to shipped',
                     'errors' => ['tracking_number' => ['Tracking number is required for shipped orders']]
                 ], 422);
             }
             
-            if (empty($request->input('shipping_service'))) {
-                return response()->json([
+            if (empty($request->input('shipping_service'))) {return response()->json([
                     'message' => 'Shipping service is required when setting order status to shipped',
                     'errors' => ['shipping_service' => ['Shipping service is required for shipped orders']]
                 ], 422);
@@ -629,43 +574,31 @@ class OrderController extends Controller
 
         $order = Order::find($id);
         
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
+        if (!$order) {return response()->json(['message' => 'Order not found'], 404);
         }
+
+        // Store previous status for email notification
+        $previousStatus = $order->status;
 
         // Update only provided fields
         $updateData = array_filter($request->only(['status', 'tracking_number', 'shipping_service', 'notes']), function ($value) {
             return $value !== null;
-        });
-
-        // Detect if status is being updated to 'shipped' and tracking_number is set
-        $wasShipped = $order->status === 'shipped';
-        $order->update($updateData);
-        $order->refresh();
-        $nowShipped = $order->status === 'shipped';
-        if (!$wasShipped && $nowShipped && $order->tracking_number) {
-            // Send shipped notification email
-            Log::info('Attempting to send shipped email', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'customer_email' => $order->shipping_email
-            ]);
-            try {
-                Mail::to($order->shipping_email)->send(new OrderShipped($order));
-                Log::info('Shipped email sent successfully', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'customer_email' => $order->shipping_email
-                ]);
+        });$order->update($updateData);
+        $order->refresh();// Send email notification if status changed
+        if (isset($updateData['status']) && $updateData['status'] !== $previousStatus) {try {
+                // Load the order with items before sending email
+                $order->load('items');
+                
+                // Send email notification using the imported class
+                Mail::to($order->shipping_email)->send(new OrderStatusUpdated($order, $previousStatus));
             } catch (\Exception $e) {
-                Log::error('Failed to send shipped email', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                // Email sending failure shouldn't fail the order
             }
         }
         
-        // Load the updated order with items
+        // Load the updated order with items for the response
         $order->load('items');
-        
-        return response()->json([
+return response()->json([
             'message' => 'Order updated successfully',
             'order' => $order
         ]);
@@ -747,15 +680,9 @@ class OrderController extends Controller
                     $validationResults['estimated_total'] += ($customItem->price * $customItem->quantity);
                 }
             }
-            
-            return response()->json($validationResults);
+return response()->json($validationResults);
             
         } catch (\Exception $e) {
-            Log::error('Checkout validation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
             return response()->json([
                 'message' => 'Checkout validation failed',
                 'error' => $e->getMessage()
@@ -791,24 +718,12 @@ class OrderController extends Controller
                         // Release reserved stock back to available stock
                         $variant->stock += $cartItem->quantity;
                         $variant->save();
-                        
-                        Log::info('Stock reservation released', [
-                            'variant_id' => $variant->id,
-                            'quantity_released' => $cartItem->quantity,
-                            'new_stock' => $variant->stock
-                        ]);
                     }
                 }
             }
-            
-            return response()->json(['message' => 'Stock reservation released successfully']);
+return response()->json(['message' => 'Stock reservation released successfully']);
             
         } catch (\Exception $e) {
-            Log::error('Failed to release stock reservation', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
             return response()->json([
                 'message' => 'Failed to release stock reservation',
                 'error' => $e->getMessage()
@@ -824,7 +739,7 @@ class OrderController extends Controller
         try {
             // Check if user already has this address
             $existingAddress = $user->addresses()
-                ->where('address', $request->shipping_address)
+                ->where('street', $request->shipping_address)
                 ->where('city', $request->shipping_city)
                 ->where('state', $request->shipping_state)
                 ->where('postal_code', $request->shipping_postal_code)
@@ -847,25 +762,12 @@ class OrderController extends Controller
                 ]);
                 
                 $address->save();
-                
-                Log::info('Shipping address saved to user address book', [
-                    'user_id' => $user->id,
-                    'address_id' => $address->id,
-                    'address' => $request->shipping_address
-                ]);
-                
                 return $address;
             }
             
             return $existingAddress;
             
         } catch (\Exception $e) {
-            Log::error('Failed to save shipping address to user address book', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
             // Don't fail the order if address saving fails
             return null;
         }
@@ -895,9 +797,7 @@ class OrderController extends Controller
                     return $user;
                 }
             }
-        } catch (\Exception $e) {
-            Log::warning('Failed to authenticate user with Sanctum token in OrderController', ['error' => $e->getMessage()]);
-        }
+        } catch (\Exception $e) {}
         
         return null;
     }
@@ -908,14 +808,9 @@ class OrderController extends Controller
     private function getAuthenticatedUser(Request $request)
     {
         // First, try to get user from the request (this works for Auth0 JWT tokens)
-        $user = $request->user();
-        Log::info('OrderController - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-        
-        // If no user from request, try to authenticate using Sanctum token
+        $user = $request->user();// If no user from request, try to authenticate using Sanctum token
         if (!$user) {
-            $user = $this->authenticateWithSanctum($request);
-            Log::info('OrderController - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-        }
+            $user = $this->authenticateWithSanctum($request);}
         
         return $user;
     }
@@ -963,12 +858,7 @@ class OrderController extends Controller
             }
             
             return null;
-        } catch (\Exception $e) {
-            Log::warning('Failed to extract local path from URL', [
-                'url' => $url,
-                'error' => $e->getMessage()
-            ]);
-            return null;
+        } catch (\Exception $e) { return null;
         }
     }
 }

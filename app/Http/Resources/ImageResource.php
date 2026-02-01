@@ -36,8 +36,6 @@ class ImageResource extends JsonResource
             'sort_order' => $this->sort_order,
             'image_type' => $this->image_type,
             'is_mobile' => (bool) $this->is_mobile,
-            // 'imageable_type' => $this->imageable_type, // Optionally include if needed for debugging
-            // 'imageable_id' => $this->imageable_id,     // Optionally include if needed for debugging
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];

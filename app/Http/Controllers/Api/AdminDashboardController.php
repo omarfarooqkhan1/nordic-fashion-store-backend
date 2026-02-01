@@ -29,7 +29,6 @@ class AdminDashboardController extends Controller
             'total_variants' => ProductVariant::count(),
             'total_customers' => User::customers()->count(),
             'total_admins' => User::admins()->count(),
-            'low_stock_variants' => ProductVariant::where('stock', '<', 10)->count(),
         ];
 
         // Time-based statistics
@@ -53,8 +52,7 @@ class AdminDashboardController extends Controller
             ->sum('total');
         
         $stats['total_revenue'] = Order::where('status', 'completed')->sum('total');
-
-        return response()->json($stats);
+return response()->json($stats);
     }
 
     /**
@@ -80,8 +78,7 @@ class AdminDashboardController extends Controller
                     'is_notified' => $user->is_admin_notified
                 ];
             });
-
-        return response()->json([
+return response()->json([
             'registrations' => $registrations,
             'total_count' => User::where('created_at', '>=', Carbon::now()->subDays($days))->count()
         ]);
@@ -112,8 +109,7 @@ class AdminDashboardController extends Controller
                     'time_ago' => $order->created_at->diffForHumans(),
                 ];
             });
-
-        return response()->json([
+return response()->json([
             'orders' => $orders,
             'total_count' => Order::where('created_at', '>=', Carbon::now()->subDays($days))->count()
         ]);
@@ -126,7 +122,6 @@ class AdminDashboardController extends Controller
     {
         $user = User::findOrFail($userId);
         $user->update(['is_admin_notified' => true]);
-        
-        return response()->json(['message' => 'Registration marked as notified']);
+return response()->json(['message' => 'Registration marked as notified']);
     }
 }

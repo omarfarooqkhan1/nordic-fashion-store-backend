@@ -258,12 +258,17 @@
                 <h3>📦 Your Items</h3>
                 @foreach($orderItems as $item)
                 <div class="item">
-                    <div class="item-details">
-                        <div class="item-name">{{ $item->product_name }}</div>
-                        <div class="item-variant">{{ $item->variant_name }}</div>
-                        <div class="item-quantity">Quantity: {{ $item->quantity }}</div>
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                        @if($item->product_image)
+                        <img src="{{ $item->product_image }}" alt="{{ $item->product_name }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #eee;">
+                        @endif
+                        <div class="item-details">
+                            <div class="item-name">{{ $item->product_name }}</div>
+                            <div class="item-variant">{{ $item->variant_name }}</div>
+                            <div class="item-quantity">Quantity: {{ $item->quantity }}</div>
+                        </div>
                     </div>
-                    <div class="item-price">€{{ number_format($item->subtotal, 2) }}</div>
+                    <div class="item-price">{{ $order->getFormattedPrice($item->subtotal) }}</div>
                 </div>
                 @endforeach
             </div>
@@ -271,19 +276,19 @@
             <div class="totals">
                 <div class="total-row">
                     <span>Subtotal:</span>
-                    <span>€{{ number_format($order->subtotal, 2) }}</span>
+                    <span>{{ $order->getCurrencySymbol() }}{{ number_format($order->subtotal, 2) }}</span>
                 </div>
                 <div class="total-row">
                     <span>Shipping:</span>
-                    <span>€{{ number_format($order->shipping, 2) }}</span>
+                    <span>{{ $order->getCurrencySymbol() }}{{ number_format($order->shipping, 2) }}</span>
                 </div>
                 <div class="total-row">
                     <span>Tax (VAT 25%):</span>
-                    <span>€{{ number_format($order->tax, 2) }}</span>
+                    <span>{{ $order->getCurrencySymbol() }}{{ number_format($order->tax, 2) }}</span>
                 </div>
                 <div class="total-row">
                     <span>Total:</span>
-                    <span>€{{ number_format($order->total, 2) }}</span>
+                    <span>{{ $order->getCurrencySymbol() }}{{ number_format($order->total, 2) }}</span>
                 </div>
             </div>
             <!-- Shipping Information -->
@@ -319,7 +324,7 @@
             <p style="margin-top: 24px;">Thank you for choosing Nord Flex. We appreciate your business and look forward to serving you again!</p>
             <p style="color: #444; font-size: 0.98rem; margin-top: 16px;">
                 <strong>Need help?</strong> Contact our customer service team at 
-                <a href="mailto:support@nordflex.shop">support@nordflex.shop</a> 
+                <a href="mailto:support@nordflex.store">support@nordflex.store</a> 
                 or call us at +358 44 9782549.
             </p>
         </div>
@@ -329,7 +334,7 @@
             <p><strong>Nord Flex</strong></p>
             <p>Bringing you the finest Nordic-inspired fashion</p>
             <p>
-                <a href="mailto:support@nordflex.shop">support@nordflex.shop</a> | 
+                <a href="mailto:support@nordflex.store">support@nordflex.store</a> | 
                 <a href="tel:+4681234567">+358 44 9782549</a>
             </p>
             <p style="margin-top: 15px; font-size: 12px; color: #ccc;">

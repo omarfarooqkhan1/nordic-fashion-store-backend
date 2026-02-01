@@ -19,6 +19,8 @@ return new class extends Migration
             $table->text('review_text')->nullable();
             $table->string('title')->nullable();
             $table->boolean('is_verified_purchase')->default(false);
+            $table->json('media')->nullable(); // For images/videos
+            $table->string('status')->default('pending'); // pending, approved, rejected
             $table->timestamps();
             
             // Ensure one review per user per product
@@ -26,6 +28,7 @@ return new class extends Migration
             
             // Indexes for performance
             $table->index(['product_id', 'rating']);
+            $table->index(['product_id', 'status']);
             $table->index(['user_id']);
         });
     }

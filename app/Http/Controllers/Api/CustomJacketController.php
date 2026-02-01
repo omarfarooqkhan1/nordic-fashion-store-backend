@@ -26,22 +26,6 @@ class CustomJacketController extends Controller
     public function addToCart(Request $request)
     {
         try {
-            // Debug: Log what we're receiving
-            Log::info('Custom jacket addToCart request received', [
-                'all_input' => $request->all(),
-                'files' => $request->allFiles(),
-                'has_file_front' => $request->hasFile('front_image'),
-                'has_file_back' => $request->hasFile('back_image'),
-                'content_type' => $request->header('Content-Type'),
-                'content_length' => $request->header('Content-Length'),
-                'method' => $request->method(),
-                'url' => $request->url(),
-                'user' => $request->user() ? ['id' => $request->user()->id, 'email' => $request->user()->email] : null,
-                'session_id_from_input' => $request->input('session_id'),
-                'session_id_from_query' => $request->query('session_id'),
-                'session_id_from_header' => $request->header('X-Session-Id')
-            ]);
-
             $request->validate([
                 'front_image' => 'required|image|max:10240', // 10MB max
                 'back_image' => 'required|image|max:10240', // 10MB max
@@ -50,14 +34,9 @@ class CustomJacketController extends Controller
             ]);
 
             // First, try to get user from the request (this works for Auth0 JWT tokens)
-            $user = $request->user();
-            Log::info('CustomJacket addToCart - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            
-            // If no user from request, try to authenticate using Sanctum token
+            $user = $request->user();// If no user from request, try to authenticate using Sanctum token
             if (!$user) {
-                $user = $this->authenticateWithSanctum($request);
-                Log::info('CustomJacket addToCart - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            }
+                $user = $this->authenticateWithSanctum($request);}
             
             $sessionId = $request->input('session_id');
             
@@ -67,12 +46,7 @@ class CustomJacketController extends Controller
             }
             
             if ($user && $sessionId) {
-                // Authenticated user with session ID - this shouldn't happen normally
-                Log::warning('Authenticated user attempting to use session ID', [
-                    'user_id' => $user->id,
-                    'session_id' => $sessionId
-                ]);
-                // For authenticated users, ignore session ID and use user ID
+                // Authenticated user with session ID - this shouldn't happen normally// For authenticated users, ignore session ID and use user ID
                 $sessionId = null;
             }
 
@@ -86,79 +60,28 @@ class CustomJacketController extends Controller
             $backImage = $request->file('back_image');
 
             // Validate files exist
-            if (!$frontImage || !$backImage) {
-                Log::error('Custom jacket images missing', [
-                    'has_front' => $frontImage ? 'yes' : 'no',
-                    'has_back' => $backImage ? 'yes' : 'no'
-                ]);
-                throw new \Exception('Front and back images are required');
+            if (!$frontImage || !$backImage) {throw new \Exception('Front and back images are required');
             }
 
             // Validate files are valid
-            if (!$frontImage->isValid() || !$backImage->isValid()) {
-                Log::error('Custom jacket images invalid', [
-                    'front_valid' => $frontImage->isValid(),
-                    'back_valid' => $backImage->isValid(),
-                    'front_error' => $frontImage->getError(),
-                    'back_error' => $backImage->getError()
-                ]);
-                throw new \Exception('Invalid image files uploaded');
-            }
-
-            Log::info('Uploading custom jacket images', [
-                'front_name' => $frontImage->getClientOriginalName(),
-                'back_name' => $backImage->getClientOriginalName(),
-                'front_size' => $frontImage->getSize(),
-                'back_size' => $backImage->getSize()
-            ]);
-
-            // Upload to local storage
+            if (!$frontImage->isValid() || !$backImage->isValid()) {throw new \Exception('Invalid image files uploaded');
+            }// Upload to local storage
             try {
                 $frontResult = $this->localImageService->uploadImage(
                     $frontImage
                 );
-            } catch (\Exception $e) {
-                Log::error('Failed to upload front image', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-                throw new \Exception('Failed to upload front image: ' . $e->getMessage());
+            } catch (\Exception $e) {throw new \Exception('Failed to upload front image: ' . $e->getMessage());
             }
 
             try {
                 $backResult = $this->localImageService->uploadImage(
                     $backImage
                 );
-            } catch (\Exception $e) {
-                Log::error('Failed to upload back image', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-                throw new \Exception('Failed to upload back image: ' . $e->getMessage());
+            } catch (\Exception $e) {throw new \Exception('Failed to upload back image: ' . $e->getMessage());
             }
 
-            if (!$frontResult || !$backResult) {
-                Log::error('Upload returned null', [
-                    'front_result' => $frontResult,
-                    'back_result' => $backResult
-                ]);
-                throw new \Exception('Failed to upload images to local storage');
-            }
-
-            Log::info('Custom jacket images uploaded successfully', [
-                'front_url' => $frontResult['secure_url'],
-                'back_url' => $backResult['secure_url']
-            ]);
-
-            // Debug logging before creating the record
-            Log::info('Creating custom jacket record with values:', [
-                'user' => $user ? ['id' => $user->id, 'email' => $user->email] : null,
-                'user_id_to_save' => $user ? $user->id : null,
-                'session_id' => $sessionId,
-                'jacket_data' => $jacketData
-            ]);
-            
-            // Create custom jacket item in database
+            if (!$frontResult || !$backResult) {throw new \Exception('Failed to upload images to local storage');
+            }// Debug logging before creating the record// Create custom jacket item in database
             $customJacket = CustomJacketCartItem::create([
                 'item_id' => Str::uuid(),
                 'session_id' => $sessionId, // Use the validated session ID
@@ -174,21 +97,7 @@ class CustomJacketController extends Controller
                 'custom_description' => $jacketData['customDescription'] ?? null,
             ]);
             
-            // Debug logging after creating the record
-            Log::info('Custom jacket record created:', [
-                'item_id' => $customJacket->item_id,
-                'user_id_saved' => $customJacket->user_id,
-                'session_id_saved' => $customJacket->session_id
-            ]);
-
-            Log::info('Custom jacket added to cart', [
-                'session_id' => $sessionId,
-                'jacket_id' => $customJacket->item_id,
-                'front_image_url' => $frontResult['secure_url'],
-                'back_image_url' => $backResult['secure_url']
-            ]);
-
-            // Return the created item in the expected format
+            // Debug logging after creating the record// Return the created item in the expected format
             return response()->json([
                 'id' => $customJacket->item_id,
                 'type' => 'custom_jacket',
@@ -204,14 +113,7 @@ class CustomJacketController extends Controller
                 'createdAt' => $customJacket->created_at->toISOString(),
             ], 201);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to add custom jacket to cart', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'session_id' => $request->input('session_id')
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'error' => 'Failed to add custom jacket to cart',
                 'message' => $e->getMessage()
             ], 500);
@@ -225,14 +127,9 @@ class CustomJacketController extends Controller
     {
         try {
             // First, try to get user from the request (this works for Auth0 JWT tokens)
-            $user = $request->user();
-            Log::info('CustomJacket removeFromCart - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            
-            // If no user from request, try to authenticate using Sanctum token
+            $user = $request->user();// If no user from request, try to authenticate using Sanctum token
             if (!$user) {
-                $user = $this->authenticateWithSanctum($request);
-                Log::info('CustomJacket removeFromCart - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            }
+                $user = $this->authenticateWithSanctum($request);}
             
             $sessionId = $request->query('session_id');
             
@@ -241,28 +138,15 @@ class CustomJacketController extends Controller
                 return response()->json(['message' => 'Authentication required or valid session ID needed'], 400);
             }
             
-            // Debug logging for item search
-            Log::info('Searching for custom jacket item:', [
-                'customItemId' => $customItemId,
-                'user' => $user ? ['id' => $user->id, 'email' => $user->email] : null,
-                'sessionId' => $sessionId,
-                'search_by_user_id' => $user ? $user->id : 'N/A',
-                'search_by_session_id' => $sessionId ?? 'N/A'
-            ]);
-            
-            // Find custom jacket item based on user or session
+            // Debug logging for item search// Find custom jacket item based on user or session
             $customItem = null;
             if ($user) {
                 $customItem = CustomJacketCartItem::where('item_id', $customItemId)
                     ->where('user_id', $user->id)
-                    ->first();
-                Log::info('Searching by user_id:', ['user_id' => $user->id, 'found' => $customItem ? 'YES' : 'NO']);
-            } else {
+                    ->first();} else {
                 $customItem = CustomJacketCartItem::where('item_id', $customItemId)
                     ->where('session_id', $sessionId)
-                    ->first();
-                Log::info('Searching by session_id:', ['session_id' => $sessionId, 'found' => $customItem ? 'YES' : 'NO']);
-            }
+                    ->first();}
 
             if (!$customItem) {
                 return response()->json(['error' => 'Custom jacket not found'], 404);
@@ -276,22 +160,9 @@ class CustomJacketController extends Controller
 
             // Delete from database
             $customItem->delete();
+return response()->json(['message' => 'Custom jacket removed from cart']);
 
-            Log::info('Custom jacket removed from cart', [
-                'custom_item_id' => $customItemId,
-                'user_id' => $user ? $user->id : null,
-                'session_id' => $sessionId
-            ]);
-
-            return response()->json(['message' => 'Custom jacket removed from cart']);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to remove custom jacket from cart', [
-                'error' => $e->getMessage(),
-                'custom_item_id' => $customItemId
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'error' => 'Failed to remove custom jacket from cart',
                 'message' => $e->getMessage()
             ], 500);
@@ -305,14 +176,9 @@ class CustomJacketController extends Controller
     {
         try {
             // First, try to get user from the request (this works for Auth0 JWT tokens)
-            $user = $request->user();
-            Log::info('CustomJacket getCart - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            
-            // If no user from request, try to authenticate using Sanctum token
+            $user = $request->user();// If no user from request, try to authenticate using Sanctum token
             if (!$user) {
-                $user = $this->authenticateWithSanctum($request);
-                Log::info('CustomJacket getCart - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            }
+                $user = $this->authenticateWithSanctum($request);}
             
             $sessionId = $request->query('session_id'); // Use query parameter for GET requests
             
@@ -345,17 +211,9 @@ class CustomJacketController extends Controller
                     'createdAt' => $item->created_at?->toISOString(),
                 ];
             });
+return response()->json($formattedItems);
 
-            return response()->json($formattedItems);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to get custom jacket cart', [
-                'error' => $e->getMessage(),
-                'user_id' => $user ? $user->id : null,
-                'session_id' => $sessionId
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'error' => 'Failed to get custom jacket cart',
                 'message' => $e->getMessage()
             ], 500);
@@ -372,12 +230,7 @@ class CustomJacketController extends Controller
         
         if ($user) {
             // Authenticated users should not use session-based carts
-            // They should have their cart tied to their user ID
-            Log::warning('Authenticated user attempting to use session-based cart', [
-                'user_id' => $user->id,
-                'session_id' => $sessionId
-            ]);
-            return false;
+            // They should have their cart tied to their user IDreturn false;
         }
         
         // For guest users, validate session ID format and ensure it's not being hijacked
@@ -392,11 +245,6 @@ class CustomJacketController extends Controller
         
         if ($existingSession) {
             // Log the IP for monitoring (you could store this in the database for better tracking)
-            Log::info('Session access', [
-                'session_id' => $sessionId,
-                'client_ip' => $clientIp,
-                'timestamp' => now()
-            ]);
         }
         
         return true;
@@ -426,9 +274,7 @@ class CustomJacketController extends Controller
                     return $user;
                 }
             }
-        } catch (\Exception $e) {
-            Log::warning('Failed to authenticate user with Sanctum token in CustomJacketController', ['error' => $e->getMessage()]);
-        }
+        } catch (\Exception $e) {}
         
         return null;
     }
@@ -438,30 +284,15 @@ class CustomJacketController extends Controller
      */
     public function updateQuantity(Request $request, $customItemId)
     {
-        try {
-            Log::info('Custom jacket updateQuantity request received', [
-                'custom_item_id' => $customItemId,
-                'all_input' => $request->all(),
-                'user' => $request->user() ? ['id' => $request->user()->id, 'email' => $request->user()->email] : null,
-                'session_id_from_input' => $request->input('session_id'),
-                'session_id_from_query' => $request->query('session_id'),
-                'session_id_from_header' => $request->header('X-Session-Id')
-            ]);
-
-            $request->validate([
+        try {$request->validate([
                 'quantity' => 'required|integer|min:1|max:10',
                 'session_id' => 'nullable|string'
             ]);
 
             // First, try to get user from the request (this works for Auth0 JWT tokens)
-            $user = $request->user();
-            Log::info('CustomJacket updateQuantity - User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $request->user()->email] : null]);
-            
-            // If no user from request, try to authenticate using Sanctum token
+            $user = $request->user();// If no user from request, try to authenticate using Sanctum token
             if (!$user) {
-                $user = $this->authenticateWithSanctum($request);
-                Log::info('CustomJacket updateQuantity - User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
-            }
+                $user = $this->authenticateWithSanctum($request);}
             
             $sessionId = $request->query('session_id');
             
@@ -480,47 +311,15 @@ class CustomJacketController extends Controller
             }
             
             // Debug logging for item search
-            Log::info('Searching for custom jacket item:', [
-                'customItemId' => $customItemId,
-                'user' => $user ? ['id' => $user->id, 'email' => $user->email] : null,
-                'sessionId' => $sessionId,
-                'search_by_user_id' => $user ? $user->id : 'N/A',
-                'search_by_session_id' => $sessionId ?? 'N/A',
-                'query_sql' => $query->toSql(),
-                'query_bindings' => $query->getBindings()
-            ]);
-            
-            $item = $query->first();
+$item = $query->first();
             
             if (!$item) {
-                // Log what items exist for debugging
-                $allItems = CustomJacketCartItem::all();
-                Log::warning('Custom jacket not found. Available items:', [
-                    'total_items' => $allItems->count(),
-                    'items' => $allItems->map(function($item) {
-                        return [
-                            'id' => $item->id,
-                            'item_id' => $item->item_id,
-                            'user_id' => $item->user_id,
-                            'session_id' => $item->session_id,
-                            'name' => $item->name
-                        ];
-                    })->toArray()
-                ]);
-                
                 return response()->json(['message' => 'Custom jacket not found in cart'], 404);
             }
 
             // Update the quantity
             $item->quantity = $request->input('quantity');
             $item->save();
-
-            Log::info('Custom jacket quantity updated successfully', [
-                'item_id' => $item->id,
-                'new_quantity' => $item->quantity,
-                'user_id' => $user ? $user->id : null,
-                'session_id' => $sessionId
-            ]);
 
             // Return the updated item
             return response()->json([
@@ -536,15 +335,7 @@ class CustomJacketController extends Controller
                 'createdAt' => $item->created_at->toISOString(),
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Failed to update custom jacket quantity', [
-                'error' => $e->getMessage(),
-                'custom_item_id' => $customItemId,
-                'user_id' => $user ?? null,
-                'session_id' => $sessionId ?? null
-            ]);
-
-            return response()->json([
+        } catch (\Exception $e) { return response()->json([
                 'error' => 'Failed to update custom jacket quantity',
                 'message' => $e->getMessage()
             ], 500);
@@ -575,9 +366,7 @@ class CustomJacketController extends Controller
             if ($frontPath) {
                 try {
                     if ($this->localImageService->deleteImage($frontPath)) {
-                        $results['deleted']++;
-                        Log::info('Front custom jacket image deleted from local storage', ['path' => $frontPath]);
-                    } else {
+                        $results['deleted']++;} else {
                         $results['failed']++;
                         $results['errors'][] = "Failed to delete front image: {$frontPath}";
                     }
@@ -591,9 +380,7 @@ class CustomJacketController extends Controller
             if ($backPath) {
                 try {
                     if ($this->localImageService->deleteImage($backPath)) {
-                        $results['deleted']++;
-                        Log::info('Back custom jacket image deleted from local storage', ['path' => $backPath]);
-                    } else {
+                        $results['deleted']++;} else {
                         $results['failed']++;
                         $results['errors'][] = "Failed to delete back image: {$backPath}";
                     }
@@ -601,18 +388,7 @@ class CustomJacketController extends Controller
                     $results['failed']++;
                     $results['errors'][] = "Error deleting back image {$backPath}: " . $e->getMessage();
                 }
-            }
-
-            Log::info('Custom jacket images cleanup completed', $results);
-            
-        } catch (\Exception $e) {
-            Log::error('Failed to cleanup custom jacket images', [
-                'error' => $e->getMessage(),
-                'front_url' => $frontImageUrl,
-                'back_url' => $backImageUrl
-            ]);
-            
-            $results['errors'][] = 'General cleanup error: ' . $e->getMessage();
+            }} catch (\Exception $e) {$results['errors'][] = 'General cleanup error: ' . $e->getMessage();
         }
 
         return $results;
@@ -644,12 +420,7 @@ class CustomJacketController extends Controller
             }
             
             return null;
-        } catch (\Exception $e) {
-            Log::warning('Failed to extract local path from URL', [
-                'url' => $url,
-                'error' => $e->getMessage()
-            ]);
-            return null;
+        } catch (\Exception $e) { return null;
         }
     }
 }

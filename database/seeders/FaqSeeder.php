@@ -57,7 +57,7 @@ class FaqSeeder extends Seeder
             ],
             [
                 'question' => 'How can I contact customer support?',
-                'answer' => 'You can reach our customer support team via email at support@nordflex.shop or by phone at +358449782549.',
+                'answer' => 'You can reach our customer support team via email at support@nordflex.store or by phone at +358449782549.',
                 'order' => 10,
             ],
         ];

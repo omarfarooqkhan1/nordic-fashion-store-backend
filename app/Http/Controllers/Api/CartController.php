@@ -21,17 +21,7 @@ class CartController extends Controller
      */
     public function index(Request $request)
     {
-        Log::info('CartController@index method called');
-        
         try {
-            // Debug: Log what we're receiving
-            Log::info('Cart index request received', [
-                'user' => $request->user() ? ['id' => $request->user()->id, 'email' => $request->user()->email] : null,
-                'session_id_from_header' => $request->header('X-Session-Id'),
-                'authorization_header' => $request->header('Authorization'),
-                'all_headers' => $request->headers->all()
-            ]);
-
             $cart = $this->getOrCreateCart($request);
             
             // If getOrCreateCart returned an error response, return it
@@ -84,16 +74,10 @@ class CartController extends Controller
             }
 
             $response = ['cart' => $transformedCart];
-                        
+
             return response()->json($response);
 
         } catch (\Exception $e) {
-            Log::error('Failed to get cart', [
-                'error' => $e->getMessage(),
-                'user_id' => $request->user()?->id,
-                'session_id' => $request->header('X-Session-Id')
-            ]);
-
             return response()->json([
                 'message' => 'Failed to get cart',
                 'error' => $e->getMessage()
@@ -106,11 +90,6 @@ class CartController extends Controller
      */
     public function store(Request $request)
     {
-        Log::info('CartController@store method called - Adding item to cart', [
-            'request_data' => $request->all(),
-            'headers' => $request->headers->all()
-        ]);
-        
         try {
             $request->validate([
                 'product_variant_id' => 'required|exists:product_variants,id',
@@ -123,12 +102,6 @@ class CartController extends Controller
             if ($cart instanceof \Illuminate\Http\JsonResponse) {
                 return $cart;
             }
-            
-            Log::info('Cart retrieved/created for adding item', [
-                'cart_id' => $cart->id,
-                'user_id' => $cart->user_id,
-                'session_id' => $cart->session_id
-            ]);
             
             // Validate cart ownership
             if (!$this->validateCartOwnership($request, $cart)) {
@@ -184,15 +157,10 @@ class CartController extends Controller
                 'message' => $message,
                 'cart' => $transformedCart
             ];
-                        
+
             return response()->json($response, 201);
 
         } catch (\Exception $e) {
-            Log::error('Failed to add item to cart', [
-                'error' => $e->getMessage(),
-                'request_data' => $request->all()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to add item to cart',
                 'error' => $e->getMessage()
@@ -244,16 +212,10 @@ class CartController extends Controller
                 'message' => 'Cart item updated',
                 'cart' => $cart
             ];
-                        
+
             return response()->json($response);
 
         } catch (\Exception $e) {
-            Log::error('Failed to update cart item', [
-                'error' => $e->getMessage(),
-                'cart_item_id' => $id,
-                'request_data' => $request->all()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to update cart item',
                 'error' => $e->getMessage()
@@ -295,11 +257,6 @@ class CartController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to remove cart item', [
-                'error' => $e->getMessage(),
-                'cart_item_id' => $id
-            ]);
-
             return response()->json([
                 'message' => 'Failed to remove cart item',
                 'error' => $e->getMessage()
@@ -327,12 +284,7 @@ class CartController extends Controller
 
             // Clear regular cart items
             $cart->items()->delete();
-            Log::info('Regular cart items cleared', [
-                'cart_id' => $cart->id,
-                'user_id' => $request->user()?->id,
-                'session_id' => $request->header('X-Session-Id')
-            ]);
-
+            
             // Clear custom jacket cart items
             $user = $request->user();
             $sessionId = $request->header('X-Session-Id');
@@ -349,18 +301,10 @@ class CartController extends Controller
                 $customJacketItems = $customJacketQuery->get();
                 
                 if ($customJacketItems->isNotEmpty()) {
-                    Log::info('Clearing custom jacket cart items', [
-                        'items_count' => $customJacketItems->count(),
-                        'user_id' => $user?->id,
-                        'session_id' => $sessionId
-                    ]);
-                    
                     // Delete custom jacket items from database
                     $customJacketItems->each(function ($item) {
                         $item->delete();
                     });
-                    
-                    Log::info('Custom jacket cart items cleared successfully');
                 }
             }
 
@@ -370,12 +314,6 @@ class CartController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to clear cart', [
-                'error' => $e->getMessage(),
-                'user_id' => $request->user()?->id,
-                'session_id' => $request->header('X-Session-Id')
-            ]);
-
             return response()->json([
                 'message' => 'Failed to clear cart',
                 'error' => $e->getMessage()
@@ -388,32 +326,24 @@ class CartController extends Controller
      */
     private function getOrCreateCart(Request $request)
     {
-        Log::info('getOrCreateCart method called');
-        
         // First, try to get user from the request (this works for Auth0 JWT tokens)
         $user = $request->user();
-        Log::info('User from request (Auth0)', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
         
         // If no user from request, try to authenticate using Sanctum token
         if (!$user) {
             $user = $this->authenticateWithSanctum($request);
-            Log::info('User from Sanctum authentication', ['user' => $user ? ['id' => $user->id, 'email' => $user->email] : null]);
         }
         
         $sessionId = $request->header('X-Session-Id');
-        Log::info('Session ID from header', ['session_id' => $sessionId]);
         
         if ($user) {
             // Authenticated user - get or create user-specific cart
-            Log::info('Creating user-specific cart', ['user_id' => $user->id]);
             return Cart::firstOrCreate(['user_id' => $user->id]);
         } else {
             // Guest user - get or create session-specific cart
             if (!$sessionId) {
-                Log::warning('No session ID provided for guest user');
                 return response()->json(['message' => 'Session ID required for guest users'], 400);
             }
-            Log::info('Creating session-specific cart', ['session_id' => $sessionId]);
             return Cart::firstOrCreate(['session_id' => $sessionId, 'user_id' => null]);
         }
     }
@@ -442,9 +372,7 @@ class CartController extends Controller
                     return $user;
                 }
             }
-        } catch (\Exception $e) {
-            Log::warning('Failed to authenticate user with Sanctum token', ['error' => $e->getMessage()]);
-        }
+        } catch (\Exception $e) {}
         
         return null;
     }
@@ -484,9 +412,7 @@ class CartController extends Controller
             $cart->items()->delete();
             $cart->delete();
         }
-        
-        Log::info('Cleaned up expired guest carts', ['count' => $expiredCarts->count()]);
-        
+
         return response()->json(['message' => 'Expired guest carts cleaned up', 'count' => $expiredCarts->count()]);
     }
     
@@ -541,25 +467,13 @@ class CartController extends Controller
             // Delete guest cart
             $guestCart->items()->delete();
             $guestCart->delete();
-            
-            Log::info('Guest cart migrated to user cart', [
-                'user_id' => $user->id,
-                'session_id' => $sessionId,
-                'migrated_items' => $migratedItems
-            ]);
-            
+
             return response()->json([
                 'message' => 'Guest cart migrated successfully',
                 'migrated_items' => $migratedItems
             ]);
             
         } catch (\Exception $e) {
-            Log::error('Failed to migrate guest cart', [
-                'error' => $e->getMessage(),
-                'user_id' => $user->id,
-                'session_id' => $sessionId
-            ]);
-            
             return response()->json([
                 'message' => 'Failed to migrate guest cart',
                 'error' => $e->getMessage()

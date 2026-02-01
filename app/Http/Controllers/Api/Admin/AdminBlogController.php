@@ -96,11 +96,6 @@ class AdminBlogController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to fetch admin blogs', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to fetch blogs',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -128,12 +123,6 @@ class AdminBlogController extends Controller
             return response()->json($transformedBlog);
 
         } catch (\Exception $e) {
-            Log::error('Failed to fetch admin blog post', [
-                'error' => $e->getMessage(),
-                'id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to fetch blog post',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -147,13 +136,6 @@ class AdminBlogController extends Controller
     public function store(Request $request)
     {
         try {
-            // Log incoming request for debugging
-            Log::info('Blog store request received', [
-                'has_featured_image_file' => $request->hasFile('featured_image_file'),
-                'featured_image_url' => $request->get('featured_image'),
-                'has_images_files' => $request->hasFile('images'),
-                'all_request_data' => $request->all()
-            ]);
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
                 'excerpt' => 'nullable|string|max:1000',
@@ -188,25 +170,12 @@ class AdminBlogController extends Controller
                 
                 if ($result) {
                     $data['featured_image'] = $result['secure_url'];
-                    Log::info('Blog featured image uploaded successfully', [
-                        'blog_title' => $data['title'],
-                        'local_path' => $result['public_id'],
-                        'compression_ratio' => $result['compression_ratio'] . '%'
-                    ]);
                 } else {
-                    Log::error('Failed to upload blog featured image', [
-                        'blog_title' => $data['title'],
-                        'file' => $request->file('featured_image_file')->getClientOriginalName()
-                    ]);
                     // If file upload fails, don't set featured_image
                     unset($data['featured_image']);
                 }
             } elseif (!empty($data['featured_image'])) {
                 // Only use URL if no file upload and URL is provided
-                Log::info('Using featured image URL', [
-                    'blog_title' => $data['title'],
-                    'url' => $data['featured_image']
-                ]);
             }
             
             // Handle gallery images - separate existing images from new file uploads
@@ -235,16 +204,8 @@ class AdminBlogController extends Controller
                     
                     if ($result) {
                         $uploadedImages[] = $result['secure_url'];
-                        Log::info('Blog gallery image uploaded successfully', [
-                            'blog_title' => $data['title'],
-                            'local_path' => $result['public_id'],
-                            'compression_ratio' => $result['compression_ratio'] . '%'
-                        ]);
                     } else {
-                        Log::error('Failed to upload blog gallery image', [
-                            'blog_title' => $data['title'],
-                            'file' => $image->getClientOriginalName()
-                        ]);
+                        // Handle upload failure if needed
                     }
                 }
             }
@@ -261,13 +222,7 @@ class AdminBlogController extends Controller
 
             // Clear cache
             $this->clearBlogCache();
-
-            Log::info('Blog post created', [
-                'blog_id' => $blog->id,
-                'title' => $blog->title,
-                'status' => $blog->status
-            ]);
-
+            
             return response()->json([
                 'message' => 'Blog post created successfully',
                 'data' => $this->transformBlogForAdmin($blog),
@@ -275,11 +230,6 @@ class AdminBlogController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            Log::error('Failed to create blog post', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to create blog post',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -341,10 +291,6 @@ class AdminBlogController extends Controller
                         $localPath = ltrim($localPath, '/');
                         if ($localPath) {
                             $localImageService->deleteImage($localPath);
-                            Log::info('Old featured image deleted', [
-                                'blog_id' => $blog->id,
-                                'local_path' => $localPath
-                            ]);
                         }
                     }
                 }
@@ -353,34 +299,15 @@ class AdminBlogController extends Controller
 
                 if ($result) {
                     $data['featured_image'] = $result['secure_url'];
-                    Log::info('Blog featured image uploaded successfully', [
-                        'blog_id' => $blog->id,
-                        'blog_title' => $data['title'] ?? $blog->title,
-                        'local_path' => $result['public_id'],
-                        'compression_ratio' => $result['compression_ratio'] . '%'
-                    ]);
                 } else {
-                    Log::error('Failed to upload blog featured image', [
-                        'blog_id' => $blog->id,
-                        'file' => $request->file('featured_image_file')->getClientOriginalName()
-                    ]);
                     // If file upload fails, don't set featured_image
                     unset($data['featured_image']);
                 }
             } elseif (array_key_exists('featured_image', $data) && $data['featured_image'] === '') {
                 // Remove featured image if empty string sent from frontend
                 $data['featured_image'] = null;
-                Log::info('Removing featured image for blog', [
-                    'blog_id' => $blog->id,
-                    'blog_title' => $data['title'] ?? $blog->title
-                ]);
             } elseif (isset($data['featured_image']) && !empty($data['featured_image'])) {
                 // Only use URL if no file upload and URL is provided
-                Log::info('Using featured image URL', [
-                    'blog_id' => $blog->id,
-                    'blog_title' => $data['title'] ?? $blog->title,
-                    'url' => $data['featured_image']
-                ]);
             }
 
             // Handle gallery images - separate existing images from new file uploads
@@ -412,17 +339,8 @@ class AdminBlogController extends Controller
                     
                     if ($result) {
                         $uploadedImages[] = $result['secure_url'];
-                        Log::info('Blog gallery image uploaded successfully', [
-                            'blog_id' => $blog->id,
-                            'blog_title' => $data['title'] ?? $blog->title,
-                            'local_path' => $result['public_id'],
-                            'compression_ratio' => $result['compression_ratio'] . '%'
-                        ]);
                     } else {
-                        Log::error('Failed to upload blog gallery image', [
-                            'blog_id' => $blog->id,
-                            'file' => $image->getClientOriginalName()
-                        ]);
+                        // Handle upload failure if needed
                     }
                 }
             }
@@ -439,13 +357,6 @@ class AdminBlogController extends Controller
 
             // Clear cache
             $this->clearBlogCache();
-
-            Log::info('Blog post updated', [
-                'blog_id' => $blog->id,
-                'title' => $blog->title,
-                'status' => $blog->status
-            ]);
-
             return response()->json([
                 'message' => 'Blog post updated successfully',
                 'data' => $this->transformBlogForAdmin($blog->fresh()),
@@ -453,12 +364,6 @@ class AdminBlogController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to update blog post', [
-                'error' => $e->getMessage(),
-                'blog_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to update blog post',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -485,24 +390,12 @@ class AdminBlogController extends Controller
 
             // Clear cache
             $this->clearBlogCache();
-
-            Log::info('Blog post deleted', [
-                'blog_id' => $id,
-                'title' => $blogTitle
-            ]);
-
             return response()->json([
                 'message' => 'Blog post deleted successfully',
                 'success' => true
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to delete blog post', [
-                'error' => $e->getMessage(),
-                'blog_id' => $id,
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to delete blog post',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -548,11 +441,6 @@ class AdminBlogController extends Controller
             return response()->json($stats);
 
         } catch (\Exception $e) {
-            Log::error('Failed to fetch blog statistics', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to fetch blog statistics',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -609,13 +497,6 @@ class AdminBlogController extends Controller
 
             // Clear cache
             $this->clearBlogCache();
-
-            Log::info('Bulk action performed on blog posts', [
-                'action' => $action,
-                'blog_ids' => $blogIds,
-                'affected_count' => $affectedCount
-            ]);
-
             return response()->json([
                 'message' => "Successfully {$action}d {$affectedCount} blog post(s)",
                 'affected_count' => $affectedCount,
@@ -623,13 +504,6 @@ class AdminBlogController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to perform bulk action on blog posts', [
-                'error' => $e->getMessage(),
-                'action' => $request->action ?? 'unknown',
-                'blog_ids' => $request->blog_ids ?? [],
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to perform bulk action',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -705,8 +579,6 @@ class AdminBlogController extends Controller
         for ($i = 1; $i <= 20; $i++) {
             Cache::forget("popular_blogs_{$i}");
         }
-        
-        Log::info('Blog cache cleared');
     }
     
     /**
@@ -738,11 +610,6 @@ class AdminBlogController extends Controller
 
             return response()->json($analytics);
         } catch (\Exception $e) {
-            Log::error('Failed to fetch blog analytics', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to fetch blog analytics',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
@@ -805,11 +672,6 @@ class AdminBlogController extends Controller
                 return response()->json($blogs);
             }
         } catch (\Exception $e) {
-            Log::error('Failed to export blog posts', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'message' => 'Failed to export blog posts',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'

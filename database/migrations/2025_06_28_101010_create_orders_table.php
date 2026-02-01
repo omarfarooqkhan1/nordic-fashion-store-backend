@@ -29,7 +29,7 @@ return new class extends Migration
             $table->string('shipping_phone')->nullable();
             $table->string('shipping_address');
             $table->string('shipping_city');
-            $table->string('shipping_state');
+            $table->string('shipping_state')->nullable();
             $table->string('shipping_postal_code');
             $table->string('shipping_country');
             
@@ -48,8 +48,17 @@ return new class extends Migration
             $table->string('payment_method')->nullable(); // credit_card, paypal, etc.
             $table->string('payment_status')->default('pending'); // pending, completed, failed
             $table->string('payment_transaction_id')->nullable();
+            $table->string('currency', 3)->default('EUR'); // ISO 4217 currency code
+            $table->string('tracking_number')->nullable();
+            $table->string('shipping_service')->nullable(); // DHL, FedEx, UPS, etc.
             
             $table->timestamps();
+
+            // Indexes for better performance
+            $table->index(['user_id', 'status']);
+            $table->index(['session_id', 'status']);
+            $table->index('order_number');
+            $table->index('tracking_number');
         });
     }
 
