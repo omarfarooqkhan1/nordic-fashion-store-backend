@@ -146,6 +146,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('faqs', [\App\Http\Controllers\Api\FaqController::class, 'store']);
     Route::put('faqs/{faq}', [\App\Http\Controllers\Api\FaqController::class, 'update']);
     Route::delete('faqs/{faq}', [\App\Http\Controllers\Api\FaqController::class, 'destroy']);
+    
+    // Static pages admin endpoints
+    Route::put('static-pages/{staticPage}', [\App\Http\Controllers\Api\StaticPageController::class, 'update']);
     // Product management (admin only)
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);
@@ -243,8 +246,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/contact-forms/bulk-delete', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'bulkDelete']);
 });
 
-// Variant video upload
-Route::post('products/{product}/variant-video', [\App\Http\Controllers\Api\VariantVideoController::class, 'upload']);
+// Variant video upload (admin only)
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::post('products/{product}/variant-video', [\App\Http\Controllers\Api\VariantVideoController::class, 'upload']);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -300,6 +305,10 @@ Route::get('hero-images', [\App\Http\Controllers\Api\HeroImageController::class,
 
 // FAQ public endpoints
 Route::get('faqs', [\App\Http\Controllers\Api\FaqController::class, 'index']);
+
+// Static pages public endpoints
+Route::get('static-pages', [\App\Http\Controllers\Api\StaticPageController::class, 'index']);
+Route::get('static-pages/{slug}', [\App\Http\Controllers\Api\StaticPageController::class, 'show']);
 
 // Chatbot endpoint
 Route::post('chatbot', [ChatbotController::class, 'chat']);
