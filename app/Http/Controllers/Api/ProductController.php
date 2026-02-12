@@ -134,6 +134,15 @@ public function store(Request $request)
             }
         }
 
+        // Generate automatic reviews for the new product
+        try {
+            $reviewGenerator = new \App\Services\ReviewGeneratorService();
+            $reviewCount = $reviewGenerator->generateReviews($product);
+            \Log::info("Generated {$reviewCount} reviews for product {$product->id}");
+        } catch (\Exception $e) {
+            \Log::error("Failed to generate reviews for product {$product->id}: " . $e->getMessage());
+        }
+
         // Reload with relationships for response
         $product->load(['category', 'variants.images', 'allImages']);
 
