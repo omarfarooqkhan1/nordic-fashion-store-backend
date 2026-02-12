@@ -57,8 +57,8 @@ class VariantVideoController extends Controller
                 'relative_path' => $relativePath
             ]);
 
-            // Update all variants of this color for the product
-            $variants = $product->variants()->where('color', $color)->get();
+            // Update all variants of this color for the product (case-insensitive)
+            $variants = $product->variants()->whereRaw('LOWER(color) = ?', [strtolower($color)])->get();
             
             if ($variants->isEmpty()) {
                 \Log::warning('No variants found for color', [
@@ -66,11 +66,13 @@ class VariantVideoController extends Controller
                     'color' => $color
                 ]);
                 
+                // Still return success with the video path so it can be used later
                 return response()->json([
-                    'message' => 'No variants found with the specified color.',
+                    'message' => 'Video uploaded successfully. It will be attached to variants when they are created with this color.',
                     'video_path' => $relativePath,
                     'video_url' => $relativePath,
-                ], 404);
+                    'pending_color' => $color,
+                ], 200);
             }
             
             foreach ($variants as $variant) {

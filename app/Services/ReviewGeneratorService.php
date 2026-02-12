@@ -60,9 +60,17 @@ class ReviewGeneratorService
         // Random count between 20-25 if not specified
         $count = $count ?? rand(20, 25);
         
+        // Get all regular users (not admin)
+        $users = User::where('role', '!=', 'admin')->pluck('id')->toArray();
+        
+        if (empty($users)) {
+            \Log::warning("No users available to generate reviews for product {$product->id}");
+            return 0;
+        }
+        
         $createdCount = 0;
 
-        DB::transaction(function () use ($product, $count, &$createdCount) {
+        DB::transaction(function () use ($product, $count, $users, &$createdCount) {
             for ($i = 0; $i < $count; $i++) {
                 // Random rating between 4 and 5
                 $rating = rand(4, 5);
@@ -70,10 +78,8 @@ class ReviewGeneratorService
                 // Get random review text
                 $reviewText = $this->reviewTemplates[$rating][array_rand($this->reviewTemplates[$rating])];
                 
-                // Generate random reviewer name
-                $firstName = $this->firstNames[array_rand($this->firstNames)];
-                $lastName = $this->lastNames[array_rand($this->lastNames)];
-                $reviewerName = $firstName . ' ' . substr($lastName, 0, 1) . '.';
+                // Get random user
+                $userId = $users[array_rand($users)];
                 
                 // Random date within last 6 months
                 $daysAgo = rand(1, 180);
@@ -82,11 +88,11 @@ class ReviewGeneratorService
                 // Create review
                 ProductReview::create([
                     'product_id' => $product->id,
-                    'user_id' => null, // Anonymous reviews
-                    'reviewer_name' => $reviewerName,
+                    'user_id' => $userId,
                     'rating' => $rating,
-                    'review' => $reviewText,
+                    'review_text' => $reviewText,
                     'status' => 'approved', // Auto-approve generated reviews
+                    'is_verified_purchase' => false,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);

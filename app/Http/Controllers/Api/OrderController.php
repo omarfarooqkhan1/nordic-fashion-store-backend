@@ -321,6 +321,21 @@ return response()->json([
                 $order->payment_transaction_id = 'TRANS_' . uniqid();
                 $order->save();
                 
+                // Send Telegram notification for new order (COMMENTED OUT - use email instead)
+                // try {
+                //     $telegramService = new \App\Services\TelegramNotificationService();
+                //     $telegramService->notifyNewOrder($order);
+                // } catch (\Exception $e) {
+                //     \Log::error('Telegram notification failed: ' . $e->getMessage());
+                // }
+                
+                // Send email notification to admin
+                try {
+                    Mail::to('orders@nordflex.store')->send(new \App\Mail\NewOrderNotification($order));
+                } catch (\Exception $e) {
+                    \Log::error('Admin notification email failed: ' . $e->getMessage());
+                }
+                
                 // Clear cart only after successful payment for non-Stripe methods
                 $this->clearCartAfterPayment($order->id);
             }

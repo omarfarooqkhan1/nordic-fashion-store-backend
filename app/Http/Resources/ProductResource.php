@@ -116,6 +116,9 @@ class ProductResource extends JsonResource
             'category' => $this->whenLoaded('category') ? new CategoryResource($this->whenLoaded('category')) : null,
             'variants' => ProductVariantResource::collection($variants), // Nested variants
             'images' => ImageResource::collection($productImages), // First variant's main images for product listing
+            'allImages' => $this->whenLoaded('allImages', function() {
+                return ImageResource::collection($this->allImages);
+            }), // All images for admin dashboard
             'detailed_images' => ImageResource::collection($detailedImages), // Detailed images
             'mobile_detailed_images' => ImageResource::collection($mobileDetailedImages), // Mobile detailed images
             'availability' => $availability,
