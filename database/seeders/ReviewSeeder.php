@@ -28,6 +28,8 @@ class ReviewSeeder extends Seeder
             return;
         }
 
+        $countries = ['SE', 'NO', 'DK', 'FI', 'IS', 'GB', 'DE', 'US', 'CA', 'NL'];
+
         $reviewTitles = [
             'Excellent quality and craftsmanship',
             'Perfect fit and great value',
@@ -136,6 +138,7 @@ class ReviewSeeder extends Seeder
                     'rating' => rand(4, 5), // Only 4-5 star reviews for positive feedback
                     'title' => $reviewTitles[array_rand($reviewTitles)],
                     'review_text' => $reviewBodies[array_rand($reviewBodies)],
+                    'country' => $countries[array_rand($countries)],
                     'created_at' => $order->created_at->addDays(rand(1, 7)), // Review created 1-7 days after order
                     'updated_at' => $order->created_at->addDays(rand(1, 7)),
                     'status' => 'approved', // Set status to approved so reviews are visible
