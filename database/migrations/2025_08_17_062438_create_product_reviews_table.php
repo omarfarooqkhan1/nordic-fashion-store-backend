@@ -24,9 +24,6 @@ return new class extends Migration
             $table->string('country', 2)->nullable()->comment('ISO 3166-1 alpha-2 country code');
             $table->timestamps();
             
-            // Ensure one review per user per product
-            $table->unique(['user_id', 'product_id']);
-            
             // Indexes for performance
             $table->index(['product_id', 'rating']);
             $table->index(['product_id', 'status']);
