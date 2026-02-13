@@ -119,6 +119,7 @@ class ProductReview extends Model
         'title',
         'is_verified_purchase',
         'media',
+        'country',
     ];
 
     protected $casts = [

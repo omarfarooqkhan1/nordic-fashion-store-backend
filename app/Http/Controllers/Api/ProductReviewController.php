@@ -146,6 +146,13 @@ return response()->json([
             }
         }
 
+        // Get user's country from their default address
+        $userCountry = null;
+        $defaultAddress = $user->addresses()->where('is_default', true)->first();
+        if ($defaultAddress && $defaultAddress->country) {
+            $userCountry = strtoupper(substr($defaultAddress->country, 0, 2));
+        }
+
         $review = ProductReview::create([
             'user_id' => $user->id,
             'product_id' => $productId,
@@ -155,6 +162,7 @@ return response()->json([
             'is_verified_purchase' => true,
             'media' => $mediaUrls,
             'status' => 'pending',
+            'country' => $userCountry,
         ]);
 
         $review->load('user:id,name');

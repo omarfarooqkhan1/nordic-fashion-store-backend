@@ -48,6 +48,19 @@ class ReviewGeneratorService
         'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson', 'Walker', 'Young',
     ];
 
+    private array $countries = [
+        'SE', // Sweden
+        'NO', // Norway
+        'DK', // Denmark
+        'FI', // Finland
+        'IS', // Iceland
+        'GB', // United Kingdom
+        'DE', // Germany
+        'US', // United States
+        'CA', // Canada
+        'NL', // Netherlands
+    ];
+
     /**
      * Generate random reviews for a product
      *
@@ -85,6 +98,9 @@ class ReviewGeneratorService
                 $daysAgo = rand(1, 180);
                 $createdAt = now()->subDays($daysAgo);
                 
+                // Random country
+                $country = $this->countries[array_rand($this->countries)];
+                
                 // Create review
                 ProductReview::create([
                     'product_id' => $product->id,
@@ -93,6 +109,7 @@ class ReviewGeneratorService
                     'review_text' => $reviewText,
                     'status' => 'approved', // Auto-approve generated reviews
                     'is_verified_purchase' => false,
+                    'country' => $country,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);

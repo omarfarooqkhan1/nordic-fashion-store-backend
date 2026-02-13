@@ -21,6 +21,7 @@ return new class extends Migration
             $table->boolean('is_verified_purchase')->default(false);
             $table->json('media')->nullable(); // For images/videos
             $table->string('status')->default('pending'); // pending, approved, rejected
+            $table->string('country', 2)->nullable()->comment('ISO 3166-1 alpha-2 country code');
             $table->timestamps();
             
             // Ensure one review per user per product
