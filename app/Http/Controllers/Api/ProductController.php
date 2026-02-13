@@ -134,11 +134,12 @@ public function store(Request $request)
             }
         }
 
-        // Generate automatic reviews for the new product
+        // Generate automatic reviews for the new product (14-15 reviews)
         try {
             $reviewGenerator = new \App\Services\ReviewGeneratorService();
-            $reviewCount = $reviewGenerator->generateReviews($product);
-            \Log::info("Generated {$reviewCount} reviews for product {$product->id}");
+            $reviewCount = rand(14, 15);
+            $generatedCount = $reviewGenerator->generateReviews($product, $reviewCount);
+            \Log::info("Generated {$generatedCount} reviews for product {$product->id}");
         } catch (\Exception $e) {
             \Log::error("Failed to generate reviews for product {$product->id}: " . $e->getMessage());
         }
