@@ -18,13 +18,15 @@ class Product extends Model
         'size_guide_image',
         'gender',
         'category_id',
-        'price', // Add price field
-        'discount', // Add discount field
+        'price',
+        'discount',
+        'is_active',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'discount' => 'decimal:2',
+        'is_active' => 'boolean',
     ];
 
     // Relationship to Category

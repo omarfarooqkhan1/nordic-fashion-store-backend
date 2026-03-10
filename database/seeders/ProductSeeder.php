@@ -56,6 +56,7 @@ class ProductSeeder extends Seeder
                 'description' => 'A classic black leather jacket made from premium leather. Timeless style and exceptional quality.',
                 'gender' => 'unisex',
                 'category_id' => $jacketCategory->id,
+                'is_active' => true,
             ]
         );
 

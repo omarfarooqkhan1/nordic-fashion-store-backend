@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('title');
             $table->longText('content');
+            $table->json('images')->nullable(); // Store images with metadata (position, caption, alt_text, width, height)
             $table->timestamps();
         });
     }

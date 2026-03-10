@@ -149,6 +149,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     
     // Static pages admin endpoints
     Route::put('static-pages/{staticPage}', [\App\Http\Controllers\Api\StaticPageController::class, 'update']);
+    Route::post('static-pages/{staticPage}/upload-image', [\App\Http\Controllers\Api\StaticPageController::class, 'uploadImage']);
+    Route::delete('static-pages/{staticPage}/delete-image', [\App\Http\Controllers\Api\StaticPageController::class, 'deleteImage']);
+    Route::put('static-pages/{staticPage}/update-image-position', [\App\Http\Controllers\Api\StaticPageController::class, 'updateImagePosition']);
+    Route::put('static-pages/{staticPage}/reorder-images', [\App\Http\Controllers\Api\StaticPageController::class, 'reorderImages']);
     // Product management (admin only)
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['store', 'update', 'destroy']);

@@ -113,6 +113,7 @@ class ProductResource extends JsonResource
             'size_guide_image' => $sizeGuideImage,
             'gender' => $this->gender,
             'discount' => $this->discount ?? null, // Add discount field with fallback to null
+            'is_active' => $this->is_active, // Add product status field
             'category' => $this->whenLoaded('category') ? new CategoryResource($this->whenLoaded('category')) : null,
             'variants' => ProductVariantResource::collection($variants), // Nested variants
             'images' => ImageResource::collection($productImages), // First variant's main images for product listing

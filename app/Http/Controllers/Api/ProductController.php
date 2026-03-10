@@ -22,6 +22,18 @@ class ProductController extends Controller
     {
         $query = Product::with(['category', 'variants.images', 'allImages']);
 
+        // Filter by active status (default: show only active products for public, show all for admin)
+        if ($request->has('show_all') && $request->show_all === 'true') {
+            // Admin can see all products (active and inactive)
+            // No filter applied
+        } elseif ($request->has('is_active')) {
+            // Filter by specific active status
+            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+        } else {
+            // Default: show only active products
+            $query->where('is_active', true);
+        }
+
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
@@ -117,6 +129,8 @@ public function store(Request $request)
             'size_guide_image' => 'nullable|string',
             'gender' => 'required|in:male,female,unisex',
             'category_id' => 'required|exists:categories,id',
+            'discount' => 'nullable|numeric|min:0|max:100',
+            'is_active' => 'nullable|boolean',
             'variants' => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string',
             'variants.*.size' => 'required_with:variants|string',
@@ -158,6 +172,8 @@ public function update(Request $request, Product $product)
             'size_guide_image' => 'nullable|string',
             'gender' => 'required|in:male,female,unisex',
             'category_id' => 'required|exists:categories,id',
+            'discount' => 'nullable|numeric|min:0|max:100',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $product->update($validated);

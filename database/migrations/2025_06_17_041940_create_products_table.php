@@ -19,6 +19,7 @@ return new class extends Migration
             $table->enum('gender', ['male', 'female', 'unisex'])->default('unisex');
             $table->decimal('price', 10, 2)->default(0.00); // Base price for display
             $table->decimal('discount', 5, 2)->default(0); // Discount percentage (0-100.00)
+            $table->boolean('is_active')->default(false); // Product status
             $table->timestamps();
 
             // Indexes for better performance

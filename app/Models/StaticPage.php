@@ -10,5 +10,10 @@ class StaticPage extends Model
         'slug',
         'title',
         'content',
+        'images',
+    ];
+
+    protected $casts = [
+        'images' => 'array',
     ];
 }

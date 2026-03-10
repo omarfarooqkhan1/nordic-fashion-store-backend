@@ -10,6 +10,7 @@ class ProductDTO extends BaseDTO
     public string $gender;
     public int $category_id;
     public ?float $discount;
+    public bool $is_active;
 
     /**
      * Define validation rules
@@ -25,6 +26,7 @@ class ProductDTO extends BaseDTO
             'gender' => 'required|in:male,female,unisex',
             'category_id' => 'required|exists:categories,id',
             'discount' => 'nullable|numeric|min:0|max:100',
+            'is_active' => 'nullable|boolean',
         ];
     }
 
@@ -42,6 +44,7 @@ class ProductDTO extends BaseDTO
             'gender',
             'category_id',
             'discount',
+            'is_active',
         ];
     }
 }

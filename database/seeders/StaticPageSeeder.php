@@ -11,6 +11,12 @@ class StaticPageSeeder extends Seeder
     {
         $pages = [
             [
+                'slug' => 'about',
+                'title' => 'About Nordflex',
+                'content' => $this->getAboutContent(),
+                'images' => $this->getAboutImages(),
+            ],
+            [
                 'slug' => 'terms-and-conditions',
                 'title' => 'Terms and Conditions',
                 'content' => $this->getTermsContent(),
@@ -43,6 +49,149 @@ class StaticPageSeeder extends Seeder
                 $page
             );
         }
+    }
+
+    private function getAboutImages(): array
+    {
+        return [
+            [
+                'id' => 'heritage-1892',
+                'url' => 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&h=600&fit=crop',
+                'path' => 'static-pages/heritage-1892.jpg',
+                'position' => 'top',
+                'caption' => 'Nordic Heritage - Founded in 1892',
+                'alt_text' => 'Historic Nordic craftsmanship and heritage',
+                'width' => '100%',
+                'height' => 'auto',
+                'uploaded_at' => now()->toISOString(),
+            ],
+            [
+                'id' => 'craftsmanship-1950',
+                'url' => 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=600&fit=crop',
+                'path' => 'static-pages/craftsmanship-1950.jpg',
+                'position' => 'middle',
+                'caption' => 'Expansion Era - 1950s Craftsmanship',
+                'alt_text' => 'Traditional leather craftsmanship techniques',
+                'width' => '100%',
+                'height' => 'auto',
+                'uploaded_at' => now()->toISOString(),
+            ],
+            [
+                'id' => 'global-reach-1985',
+                'url' => 'https://images.unsplash.com/photo-1506629905814-b9daf261d74f?w=800&h=600&fit=crop',
+                'path' => 'static-pages/global-reach-1985.jpg',
+                'position' => 'middle',
+                'caption' => 'Global Expansion - Reaching the World',
+                'alt_text' => 'International Nordic fashion distribution',
+                'width' => '100%',
+                'height' => 'auto',
+                'uploaded_at' => now()->toISOString(),
+            ],
+            [
+                'id' => 'modern-innovation-2020',
+                'url' => 'https://images.unsplash.com/photo-1460925895917-adf4e565db18?w=800&h=600&fit=crop',
+                'path' => 'static-pages/modern-innovation-2020.jpg',
+                'position' => 'bottom',
+                'caption' => 'Digital Innovation - Modern Era',
+                'alt_text' => 'Contemporary digital transformation and innovation',
+                'width' => '100%',
+                'height' => 'auto',
+                'uploaded_at' => now()->toISOString(),
+            ],
+            [
+                'id' => 'sustainability-values',
+                'url' => 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop',
+                'path' => 'static-pages/sustainability-values.jpg',
+                'position' => 'center',
+                'caption' => 'Commitment to Sustainability',
+                'alt_text' => 'Sustainable and eco-friendly practices',
+                'width' => '100%',
+                'height' => 'auto',
+                'uploaded_at' => now()->toISOString(),
+            ],
+        ];
+    }
+
+    private function getAboutContent(): string
+    {
+        return <<<'HTML'
+<div class="space-y-8">
+    <section>
+        <h2 class="text-3xl font-bold mb-4">Our Heritage</h2>
+        <p class="text-lg leading-relaxed mb-4">Founded in 1892 in the heart of Nordic Scandinavia, Nordflex has been crafting premium leather goods and fashion for over 130 years. What began as a small family workshop has evolved into a respected brand known for exceptional quality, timeless design, and sustainable practices.</p>
+        <p class="text-lg leading-relaxed">Our commitment to excellence has remained unchanged through generations. We believe that true luxury is not just about appearance, but about durability, functionality, and the stories our products tell.</p>
+    </section>
+
+    <section>
+        <h2 class="text-3xl font-bold mb-4">Our Mission</h2>
+        <p class="text-lg leading-relaxed">To create exceptional Nordic fashion that combines heritage craftsmanship with modern innovation, delivering products that inspire confidence and stand the test of time.</p>
+    </section>
+
+    <section>
+        <h2 class="text-3xl font-bold mb-4">Our Values</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
+            <div class="border-l-4 border-gold-500 pl-4">
+                <h3 class="text-xl font-semibold mb-2">🏔️ Heritage</h3>
+                <p>We honor our Nordic roots and over a century of craftsmanship tradition, blending time-tested techniques with contemporary design.</p>
+            </div>
+            <div class="border-l-4 border-green-500 pl-4">
+                <h3 class="text-xl font-semibold mb-2">♻️ Sustainability</h3>
+                <p>We are committed to environmentally responsible practices, from sourcing materials to production and packaging, ensuring a better future for generations to come.</p>
+            </div>
+            <div class="border-l-4 border-amber-500 pl-4">
+                <h3 class="text-xl font-semibold mb-2">✨ Quality</h3>
+                <p>Every product is meticulously crafted using premium materials and rigorous quality standards, ensuring excellence in every detail.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-3xl font-bold mb-4">Our Journey</h2>
+        <div class="space-y-6">
+            <div class="border-l-4 border-blue-500 pl-4">
+                <h3 class="text-2xl font-bold mb-2">1892 - The Beginning</h3>
+                <p>Our founder established the first workshop in the Nordic region, pioneering leather craftsmanship techniques that would define our brand for generations.</p>
+            </div>
+            <div class="border-l-4 border-green-500 pl-4">
+                <h3 class="text-2xl font-bold mb-2">1950 - Expansion</h3>
+                <p>Post-war growth saw Nordflex expand across Scandinavia, becoming a symbol of Nordic quality and design excellence.</p>
+            </div>
+            <div class="border-l-4 border-purple-500 pl-4">
+                <h3 class="text-2xl font-bold mb-2">1985 - Global Reach</h3>
+                <p>We began exporting our products worldwide, introducing Nordic fashion to international markets and establishing our reputation globally.</p>
+            </div>
+            <div class="border-l-4 border-orange-500 pl-4">
+                <h3 class="text-2xl font-bold mb-2">2020 - Digital Innovation</h3>
+                <p>Embracing digital transformation while maintaining our commitment to craftsmanship, we launched our online platform to serve customers worldwide.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-3xl font-bold mb-4">Why Choose Nordflex?</h2>
+        <ul class="space-y-3 text-lg">
+            <li>✓ <strong>Heritage Craftsmanship:</strong> Over 130 years of expertise and tradition</li>
+            <li>✓ <strong>Premium Materials:</strong> Only the finest leather and fabrics sourced responsibly</li>
+            <li>✓ <strong>Timeless Design:</strong> Classic styles that transcend trends</li>
+            <li>✓ <strong>Durability:</strong> Products built to last decades, not seasons</li>
+            <li>✓ <strong>Sustainability:</strong> Committed to environmental responsibility</li>
+            <li>✓ <strong>Customer Care:</strong> Exceptional service and support</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2 class="text-3xl font-bold mb-4">Our Commitment to Sustainability</h2>
+        <p class="text-lg leading-relaxed mb-4">At Nordflex, sustainability is not just a buzzword—it's embedded in everything we do. We work with suppliers who share our values, use eco-friendly production methods, and continuously seek ways to reduce our environmental impact.</p>
+        <p class="text-lg leading-relaxed">From responsibly sourced leather to recyclable packaging, we're dedicated to creating fashion that's beautiful today and responsible for tomorrow.</p>
+    </section>
+
+    <section class="bg-gold-50 dark:bg-gold-900/20 border border-gold-200 dark:border-gold-800 rounded-lg p-6">
+        <h2 class="text-2xl font-bold mb-4">Join Our Community</h2>
+        <p class="text-lg leading-relaxed mb-4">We invite you to be part of the Nordflex family. Whether you're a longtime customer or discovering us for the first time, we're here to provide you with exceptional products and service.</p>
+        <p class="text-lg leading-relaxed">Explore our collection, learn about our craftsmanship, and experience the Nordic difference.</p>
+    </section>
+</div>
+HTML;
     }
 
     private function getTermsContent(): string
