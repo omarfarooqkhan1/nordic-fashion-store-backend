@@ -93,7 +93,8 @@ class CartController extends Controller
         try {
             $request->validate([
                 'product_variant_id' => 'required|exists:product_variants,id',
-                'quantity' => 'required|integer|min:1'
+                'quantity' => 'required|integer|min:1',
+                'size' => 'nullable|string'
             ]);
 
             $cart = $this->getOrCreateCart($request);
@@ -114,9 +115,13 @@ class CartController extends Controller
             }
 
             $requestedQuantity = $request->quantity;
+            $size = $request->size;
 
-            // Check if item already exists in cart
-            $existingItem = $cart->items()->where('product_variant_id', $request->product_variant_id)->first();
+            // Check if item already exists in cart (same variant AND same size)
+            $existingItem = $cart->items()
+                ->where('product_variant_id', $request->product_variant_id)
+                ->where('size', $size)
+                ->first();
             
             if ($existingItem) {
                 $newQuantity = $existingItem->quantity + $requestedQuantity;                
@@ -125,7 +130,8 @@ class CartController extends Controller
             } else {
                 $cart->items()->create([
                     'product_variant_id' => $request->product_variant_id,
-                    'quantity' => $requestedQuantity
+                    'quantity' => $requestedQuantity,
+                    'size' => $size
                 ]);
                 $message = 'Item added to cart';
             }
@@ -444,9 +450,10 @@ class CartController extends Controller
             // Migrate items from guest cart to user cart
             $migratedItems = 0;
             foreach ($guestCart->items as $guestItem) {
-                // Check if item already exists in user cart
+                // Check if item already exists in user cart (same variant AND same size)
                 $existingItem = $userCart->items()
                     ->where('product_variant_id', $guestItem->product_variant_id)
+                    ->where('size', $guestItem->size)
                     ->first();
                 
                 if ($existingItem) {
@@ -458,7 +465,8 @@ class CartController extends Controller
                     // Create new item
                     $userCart->items()->create([
                         'product_variant_id' => $guestItem->product_variant_id,
-                        'quantity' => $guestItem->quantity
+                        'quantity' => $guestItem->quantity,
+                        'size' => $guestItem->size
                     ]);
                 }
                 $migratedItems++;

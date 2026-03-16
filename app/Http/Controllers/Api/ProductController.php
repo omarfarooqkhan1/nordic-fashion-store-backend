@@ -14,6 +14,7 @@ use App\Services\LocalImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
@@ -131,11 +132,11 @@ public function store(Request $request)
             'category_id' => 'required|exists:categories,id',
             'discount' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
+            'available_sizes' => 'nullable|array',
+            'available_sizes.*' => 'string|in:XS,S,M,L,XL,One Size',
             'variants' => 'nullable|array',
             'variants.*.color' => 'required_with:variants|string',
-            'variants.*.size' => 'required_with:variants|string',
-            
-            // add other variant fields as needed
+            'variants.*.price' => 'required_with:variants|numeric|min:0',
         ]);
 
         // Create product first
@@ -144,6 +145,10 @@ public function store(Request $request)
         // If variants are present, create them
         if (!empty($validated['variants'])) {
             foreach ($validated['variants'] as $variantData) {
+                // Generate SKU if not provided
+                if (empty($variantData['sku'])) {
+                    $variantData['sku'] = $this->generateSKU($product, $variantData['color']);
+                }
                 $product->variants()->create($variantData);
             }
         }
@@ -174,6 +179,8 @@ public function update(Request $request, Product $product)
             'category_id' => 'required|exists:categories,id',
             'discount' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
+            'available_sizes' => 'nullable|array',
+            'available_sizes.*' => 'string|in:XS,S,M,L,XL,One Size',
         ]);
 
         $product->update($validated);
@@ -839,6 +846,49 @@ return response()->json([
     }
 
     /**
+     * Reorder variant images
+     */
+    public function reorderVariantImages(Request $request, Product $product, ProductVariant $variant)
+    {
+        $request->validate([
+            'images' => 'required|array',
+            'images.*.id' => 'required|exists:images,id',
+            'images.*.sort_order' => 'required|integer|min:0',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($request->images as $imageData) {
+                $image = Image::find($imageData['id']);
+                
+                // Verify the image belongs to this variant
+                if ($image->imageable_id !== $variant->id || $image->imageable_type !== ProductVariant::class) {
+                    throw new \Exception("Image {$imageData['id']} does not belong to this variant");
+                }
+
+                $image->update(['sort_order' => $imageData['sort_order']]);
+            }
+
+            DB::commit();
+
+            // Return updated images grouped by type
+            $updatedImages = $variant->images()->orderBy('sort_order')->get();
+            
+            return response()->json([
+                'message' => 'Images reordered successfully',
+                'images' => $updatedImages
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to reorder images: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Reorder product images
      */
     public function reorderImages(Request $request, Product $product)
@@ -924,8 +974,7 @@ return response()->json([
     public function storeVariant(Request $request, Product $product)
     {
         $validated = $request->validate([
-            'size' => 'required|string|max:50',
-            'color' => 'required|string|max:50',
+            'color' => 'required|string|max:50|unique:product_variants,color,NULL,id,product_id,' . $product->id,
             'price' => 'required|numeric|min:0',
             'sku' => 'nullable|string|max:100|unique:product_variants',
             
@@ -935,7 +984,7 @@ return response()->json([
 
         // Generate SKU if not provided
         if (empty($validated['sku'])) {
-            $validated['sku'] = $this->generateSKU($product, $validated['size'], $validated['color']);
+            $validated['sku'] = $this->generateSKU($product, $validated['color']);
         }
 
         $variant = $product->variants()->create($validated);
@@ -953,17 +1002,16 @@ return response()->json([
     /**
      * Generate a SKU for a product variant
      */
-    private function generateSKU(Product $product, string $size, string $color): string
+    private function generateSKU(Product $product, string $color): string
     {
-        // Create a base SKU using the product name and variant attributes
+        // Create a base SKU using the product name and color
         $base = Str::upper(Str::limit(Str::slug($product->name, ''), 10, '')); // Limit product name to 10 chars
-        $sizeCode = Str::upper(Str::limit(Str::slug($size, ''), 3, '')); // Limit size to 3 chars
-        $colorCode = Str::upper(Str::limit(Str::slug($color, ''), 3, '')); // Limit color to 3 chars
+        $colorCode = Str::upper(Str::limit(Str::slug($color, ''), 5, '')); // Limit color to 5 chars
         
-        // Generate a unique SKU by appending a random number if needed
-        $sku = "{$base}-{$sizeCode}-{$colorCode}";
+        // Generate a unique SKU
+        $sku = "{$base}-{$colorCode}";
         
-        // Ensure uniqueness
+        // Ensure uniqueness by appending a counter if needed
         $counter = 1;
         $originalSku = $sku;
         while (ProductVariant::where('sku', $sku)->exists()) {
@@ -1002,7 +1050,6 @@ return response()->json([
         }
 
         $validated = $request->validate([
-            'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
             'price' => 'required|numeric|min:0',
             'sku' => 'nullable|string|max:100|unique:product_variants,sku,' . $variant->id,
@@ -1011,16 +1058,15 @@ return response()->json([
             'temp_image_ids.*' => 'integer|exists:images,id',
         ]);
 
-        // Check if variant with same size and color already exists (excluding current variant)
+        // Check if variant with same color already exists (excluding current variant)
         $existingVariant = ProductVariant::where([
             'product_id' => $product->id,
-            'size' => $validated['size'],
             'color' => $validated['color']
         ])->where('id', '!=', $variant->id)->first();
 
         if ($existingVariant) {
             return response()->json([
-                'message' => 'A variant with this size and color already exists for this product.'
+                'message' => 'A variant with this color already exists for this product.'
             ], 422);
         }
 
@@ -1115,6 +1161,89 @@ return response()->json($products);
 return response()->json($products);
         } catch (\Exception $e) { return response()->json([
                 'message' => 'Failed to get out of stock products'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete size guide image from a product
+     */
+    public function deleteSizeGuideImage(Product $product)
+    {
+        try {
+            // Get size guide images from the images table
+            $sizeGuideImages = $product->allImages()->where('image_type', 'size_guide')->get();
+            
+            // Also check the legacy size_guide_image column
+            $legacySizeGuideImage = $product->size_guide_image;
+            
+            if ($sizeGuideImages->isEmpty() && !$legacySizeGuideImage) {
+                return response()->json([
+                    'message' => 'No size guide image found for this product.',
+                ], 404);
+            }
+
+            \Log::info('Size guide image delete request', [
+                'product_id' => $product->id,
+                'image_count' => $sizeGuideImages->count(),
+                'legacy_image' => $legacySizeGuideImage
+            ]);
+
+            $localImageService = app(\App\Services\LocalImageService::class);
+
+            // Delete size guide images from the images table
+            foreach ($sizeGuideImages as $image) {
+                // Delete the actual file from storage
+                $localPath = $this->extractLocalPathFromUrl($image->url);
+                if ($localPath) {
+                    $localImageService->deleteImage($localPath);
+                    \Log::info('Size guide image file deleted', ['path' => $localPath]);
+                }
+                
+                // Delete the image record
+                $image->delete();
+                \Log::info('Size guide image record deleted', ['image_id' => $image->id]);
+            }
+
+            // Handle legacy size_guide_image column if it exists
+            if ($legacySizeGuideImage) {
+                // Check if it's a Cloudinary URL
+                if (strpos($legacySizeGuideImage, 'cloudinary.com') !== false) {
+                    // Extract public ID and delete from Cloudinary
+                    $publicId = $this->extractPublicIdFromUrl($legacySizeGuideImage);
+                    if ($publicId) {
+                        $cloudinaryService = app(\App\Services\CloudinaryService::class);
+                        $cloudinaryService->deleteImage($publicId);
+                        \Log::info('Legacy size guide image deleted from Cloudinary', ['public_id' => $publicId]);
+                    }
+                } else {
+                    // It's a local file
+                    $storagePath = str_replace('/storage/', '', $legacySizeGuideImage);
+                    if (Storage::disk('public')->exists($storagePath)) {
+                        Storage::disk('public')->delete($storagePath);
+                        \Log::info('Legacy size guide image deleted from local storage', ['path' => $storagePath]);
+                    }
+                }
+                
+                // Clear size_guide_image field
+                $product->size_guide_image = null;
+                $product->save();
+            }
+            
+            \Log::info('Size guide images removed from product', [
+                'product_id' => $product->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Size guide image deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Size guide image delete failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Size guide image delete failed: ' . $e->getMessage()
             ], 500);
         }
     }

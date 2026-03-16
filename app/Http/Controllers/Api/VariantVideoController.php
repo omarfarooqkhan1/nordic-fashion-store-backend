@@ -116,4 +116,69 @@ class VariantVideoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Delete video from all variants of a given color for a product.
+     */
+    public function delete(Request $request, Product $product)
+    {
+        try {
+            $request->validate([
+                'color' => 'required|string',
+            ]);
+
+            $color = $request->input('color');
+            
+            \Log::info('Video delete request', [
+                'product_id' => $product->id,
+                'color' => $color
+            ]);
+
+            // Find all variants of this color for the product
+            $variants = $product->variants()->whereRaw('LOWER(color) = ?', [strtolower($color)])->get();
+            
+            if ($variants->isEmpty()) {
+                return response()->json([
+                    'message' => 'No variants found for this color.',
+                ], 404);
+            }
+
+            // Get the video path from the first variant (they should all have the same video)
+            $videoPath = $variants->first()->video_url;
+            
+            // Delete the video file from storage if it exists
+            if ($videoPath) {
+                // Convert relative path to storage path
+                $storagePath = str_replace('/storage/', '', $videoPath);
+                if (Storage::disk('public')->exists($storagePath)) {
+                    Storage::disk('public')->delete($storagePath);
+                    \Log::info('Video file deleted from storage', ['path' => $storagePath]);
+                }
+            }
+
+            // Clear video_url from all variants of this color
+            foreach ($variants as $variant) {
+                $variant->video_url = null;
+                $variant->save();
+            }
+            
+            \Log::info('Video removed from variants', [
+                'variant_count' => $variants->count(),
+                'variant_ids' => $variants->pluck('id')
+            ]);
+            
+            return response()->json([
+                'message' => 'Video deleted successfully from all variants of this color.',
+                'variant_count' => $variants->count(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Video delete failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Video delete failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

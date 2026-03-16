@@ -13,12 +13,13 @@ return new class extends Migration
 
             $table->foreignId('cart_id')->constrained()->onDelete('cascade');
             $table->foreignId('product_variant_id')->constrained()->onDelete('cascade');
+            $table->string('size')->nullable(); // Size is stored at cart item level
 
             $table->unsignedInteger('quantity')->default(1);
 
             $table->timestamps();
 
-            $table->unique(['cart_id', 'product_variant_id']); // prevents duplicate variants in cart
+            $table->unique(['cart_id', 'product_variant_id', 'size']); // prevents duplicate variant+size combinations in cart
         });
     }
 

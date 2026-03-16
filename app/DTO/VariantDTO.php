@@ -5,7 +5,6 @@ namespace App\DTO;
 class VariantDTO extends BaseDTO
 {
     public int $product_id;
-    public string $size;
     public string $color;
     public ?string $sku;
     public float $price;
@@ -21,7 +20,6 @@ class VariantDTO extends BaseDTO
     {
         return [
             'product_id' => 'required|exists:products,id',
-            'size' => 'required|string|max:50',
             'color' => 'required|string|max:50',
             'sku' => 'nullable|string|max:100',
             'price' => 'required|numeric|min:0',
@@ -39,7 +37,6 @@ class VariantDTO extends BaseDTO
     {
         return [
             'product_id',
-            'size',
             'color',
             'sku',
             'price',

@@ -21,12 +21,14 @@ class Product extends Model
         'price',
         'discount',
         'is_active',
+        'available_sizes',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'discount' => 'decimal:2',
         'is_active' => 'boolean',
+        'available_sizes' => 'array',
     ];
 
     // Relationship to Category

@@ -14,7 +14,6 @@ class ProductVariant extends Model
         'product_id',
         'sku',
         'color',
-        'size',
         'price',
         'video_url',
         'video_path',

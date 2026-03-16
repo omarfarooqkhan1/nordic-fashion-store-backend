@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('product_variant_id')->nullable()->constrained()->nullOnDelete();
             $table->string('product_name');
             $table->string('variant_name')->nullable();
+            $table->string('size')->nullable(); // Size is stored at order item level
             $table->decimal('price', 10, 2);
             $table->integer('quantity');
             $table->decimal('subtotal', 10, 2);

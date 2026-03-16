@@ -15,17 +15,18 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('sku')->unique(); // Stock Keeping Unit
-            $table->string('color')->nullable();
-            $table->string('size')->nullable();
-            $table->decimal('price', 10, 2); // Price for this variant
-            $table->integer('stock')->default(0); // Stock quantity
-            $table->string('video_url')->nullable(); // Video URL for this variant
+            $table->string('color'); // Color is required now (no size field)
+            $table->decimal('price', 10, 2); // Price for this color variant
+            $table->string('video_url')->nullable(); // Video URL for this color variant
             $table->string('video_path')->nullable();
             $table->timestamps();
 
             // Indexes for better performance
-            $table->index(['product_id', 'color', 'size']);
+            $table->index(['product_id', 'color']);
             $table->index('sku');
+            
+            // Ensure unique color per product
+            $table->unique(['product_id', 'color']);
         });
     }
 

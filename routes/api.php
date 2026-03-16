@@ -161,6 +161,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('products/{product}/variants', [ProductController::class, 'storeVariant']);
     Route::put('products/{product}/variants/{variant}', [ProductController::class, 'updateVariant']);
     Route::delete('products/{product}/variants/{variant}', [ProductController::class, 'destroyVariant']);
+    Route::put('products/{product}/variants/{variant}/images/reorder', [ProductController::class, 'reorderVariantImages']);
     
     // Standalone variant management (alternative endpoints)
     Route::delete('variants/{variant}', [ProductController::class, 'destroyVariantStandalone']);
@@ -170,6 +171,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('products/{product}/images', [ProductController::class, 'uploadImage']);
     Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage']);
     Route::put('products/{product}/images/reorder', [ProductController::class, 'reorderImages']);
+    Route::delete('products/{product}/size-guide-image', [ProductController::class, 'deleteSizeGuideImage']);
     
     // Product statistics
     Route::get('products/stats', [ProductController::class, 'getProductStats']);
@@ -250,9 +252,10 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/contact-forms/bulk-delete', [\App\Http\Controllers\Api\Admin\AdminContactController::class, 'bulkDelete']);
 });
 
-// Variant video upload (admin only)
+// Variant video upload/delete (admin only)
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('products/{product}/variant-video', [\App\Http\Controllers\Api\VariantVideoController::class, 'upload']);
+    Route::delete('products/{product}/variant-video', [\App\Http\Controllers\Api\VariantVideoController::class, 'delete']);
 });
 
 /*

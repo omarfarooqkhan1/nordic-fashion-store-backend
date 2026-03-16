@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             \Database\Seeders\FaqSeeder::class,
             HeroImageSeeder::class, // Add hero image seeder
             ReviewSeeder::class,    // Add review seeder
+            StaticPageSeeder::class, // Add static page seeder
             // OrderSeeder::class, // Uncomment if you want to seed orders too
         ]);
     }

@@ -11,6 +11,7 @@ class ProductDTO extends BaseDTO
     public int $category_id;
     public ?float $discount;
     public bool $is_active;
+    public ?array $available_sizes;
 
     /**
      * Define validation rules
@@ -27,6 +28,8 @@ class ProductDTO extends BaseDTO
             'category_id' => 'required|exists:categories,id',
             'discount' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
+            'available_sizes' => 'nullable|array',
+            'available_sizes.*' => 'string|in:XS,S,M,L,XL,One Size',
         ];
     }
 
@@ -45,6 +48,7 @@ class ProductDTO extends BaseDTO
             'category_id',
             'discount',
             'is_active',
+            'available_sizes',
         ];
     }
 }

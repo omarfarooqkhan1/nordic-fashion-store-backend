@@ -20,6 +20,8 @@ return new class extends Migration
             $table->decimal('price', 10, 2)->default(0.00); // Base price for display
             $table->decimal('discount', 5, 2)->default(0); // Discount percentage (0-100.00)
             $table->boolean('is_active')->default(false); // Product status
+            $table->json('available_sizes')->nullable(); // Available sizes: ["XS", "S", "M", "L", "XL", "One Size"]
+            $table->string('size_guide_image')->nullable(); // Size guide image path
             $table->timestamps();
 
             // Indexes for better performance

@@ -14,20 +14,14 @@ class ProductResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // Prepare availability and variant prices keyed by "size-color"
-        $availability = [];
+        // Prepare variant prices keyed by color
         $variantPrices = [];
 
         $variants = $this->whenLoaded('variants');
 
         if ($variants) {
             foreach ($variants as $variant) {
-                $key = $variant->size . '-' . $variant->color;
-
-                $availability[$key] = $variant->stock > 0;
-
-                // Use price directly since actual_price is no longer used
-                $variantPrices[$key] = $variant->price;
+                $variantPrices[$variant->color] = $variant->price;
             }
         }
 
@@ -111,6 +105,7 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'size_guide_image' => $sizeGuideImage,
+            'available_sizes' => $this->available_sizes ?? [],
             'gender' => $this->gender,
             'discount' => $this->discount ?? null, // Add discount field with fallback to null
             'is_active' => $this->is_active, // Add product status field
@@ -118,11 +113,11 @@ class ProductResource extends JsonResource
             'variants' => ProductVariantResource::collection($variants), // Nested variants
             'images' => ImageResource::collection($productImages), // First variant's main images for product listing
             'allImages' => $this->whenLoaded('allImages', function() {
-                return ImageResource::collection($this->allImages);
-            }), // All images for admin dashboard
+                // Exclude size_guide images from allImages for admin list
+                return ImageResource::collection($this->allImages->where('image_type', '!=', 'size_guide'));
+            }), // All images for admin dashboard (excluding size guide)
             'detailed_images' => ImageResource::collection($detailedImages), // Detailed images
             'mobile_detailed_images' => ImageResource::collection($mobileDetailedImages), // Mobile detailed images
-            'availability' => $availability,
             'variantPrices' => $variantPrices,
             'similar_products' => ProductResource::collection($similarProducts), // Similar products
             'created_at' => $this->created_at?->toDateTimeString(),
